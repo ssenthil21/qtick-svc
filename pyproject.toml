@@ -1,0 +1,18 @@
+[project]
+name = "qtick-mcp"
+version = "0.1.0"
+description = "QTick MCP Service and Agent API"
+requires-python = ">=3.9"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "mcp",
+    "httpx",
+    "pydantic",
+    "openai",
+    "google-generativeai",
+    "python-dotenv"
+]
+
+[tool.setuptools]
+packages = ["app"]
