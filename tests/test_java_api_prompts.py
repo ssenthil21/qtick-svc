@@ -2,7 +2,8 @@ import requests
 import json
 import time
 
-BASE_URL = "http://localhost:8000/agent/chat"
+#BASE_URL = "http://localhost:8000/agent/chat"
+BASE_URL = "https://qtick-svc-du97k.ondigitalocean.app/agent/chat"
 
 def run_prompt(prompt, description):
     print(f"\n--- Test: {description} ---")

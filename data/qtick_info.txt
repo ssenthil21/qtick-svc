@@ -1,0 +1,61 @@
+QTick Platform Features
+
+1. Smart Queuing & Appointments
+The core of QTick. Customers join remotely and track their status via the app, eliminating physical lines and minimizing uncertainty.
+- Reduce physical waiting times significantly.
+- Provide real-time status updates to phones.
+- Build trust by respecting customer time.
+
+2. Billing & Inventory
+Simplify financial transactions. Generate professional digital invoices instantly and track stock levels automatically to manage costs effectively.
+- Create seamless end-to-end customer journeys.
+- Auto-deduct products from inventory upon sale.
+- Keep supplies well-stocked with tracking.
+
+3. Automated Review System
+Build critical social proof. The system prompts users for feedback immediately after service, automating the collection of testimonials.
+- Showcase positive reviews on your public profile.
+- Build trust and credibility for new research.
+- Automate the entire feedback loop.
+
+4. Loyalty Program
+Foster customer retention, which is more cost-effective than acquisition. Identify repeat customers and create targeted reward programs.
+- Turn satisfied clients into loyal advocates.
+- Encourage repeat business with special offers.
+- Automated tracking of customer points.
+
+5. Auto-Generated Website
+Every business needs an online presence. QTick generates an SEO-optimized profile that acts as a mini-website for your brand.
+- Showcase services, pricing, and operating hours.
+- Get discovered by new customers on Google.
+- Display glowing customer reviews in one place.
+
+6. WhatsApp Digital Campaigns
+Turn your database into a marketing asset. Run targeted campaigns via WhatsApp to re-engage past clients and attract new ones.
+- Reach specific segments with special offers.
+- Boost sales during slower periods instantly.
+- Drive immediate bookings with high open rates.
+
+7. Advanced Data Analytics
+Put data at the forefront of your strategy. Gather insights on footfall, service times, and revenue to make informed decisions.
+- Identify peak hours and popular services.
+- Pinpoint areas for improvement.
+- Shape your business for future growth.
+
+8. Customer Lead Generation
+Provide an exceptional experience to turn customers into brand ambassadors who generate referrals.
+- Make your business highly visible online.
+- Attract a steady stream of new customers.
+- Drive organic growth via your profile.
+
+9. Comprehensive Reports
+Generate detailed weekly, monthly, and yearly reports on key metrics like revenue, acquisition, and staff performance.
+- Invaluable for financial planning.
+- Review staff performance effectively.
+- Make long-term strategic decisions.
+
+10. Central Enquiry Hub
+A single place to capture and track new enquiries. Easily review incoming leads to increase your client base.
+- Never miss a business opportunity.
+- Centralized dashboard for all leads.
+- Boost conversion from enquiry to client.

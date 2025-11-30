@@ -1,8 +1,10 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Any
+from typing import Any, Optional
+from fastapi import Header
 from app.agent import Agent
+from app.website_agent import WebsiteAgent
 import logging
 import sys
 
@@ -52,6 +54,7 @@ async def startup_event():
         logging.info(f"  QTICK_JAVA_SERVICE_TOKEN: Not set")
 
 agent = Agent()
+website_agent = WebsiteAgent()
 
 class ChatRequest(BaseModel):
     prompt: str
@@ -63,8 +66,15 @@ class ChatResponse(BaseModel):
     response_text: str
     response_value: Any
 
-from fastapi import Header
-from typing import Optional
+class WebsiteChatRequest(BaseModel):
+    message: str
+    history: list = []
+
+class WebsiteChatResponse(BaseModel):
+    response_text: str
+    action: Optional[str] = None
+
+
 
 @app.post("/agent/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
@@ -82,6 +92,22 @@ async def chat(request: ChatRequest, authorization: Optional[str] = Header(None)
         )
     except Exception as e:
         logging.error(f"Error processing request: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/website/chat", response_model=WebsiteChatResponse)
+async def website_chat(request: WebsiteChatRequest, authorization: Optional[str] = Header(None)):
+    token = None
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ")[1]
+
+    try:
+        response = await website_agent.process_message(request.message, request.history, token)
+        return WebsiteChatResponse(
+            response_text=response.get("response_text", ""),
+            action=response.get("action")
+        )
+    except Exception as e:
+        logging.error(f"Error processing website chat: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/health")
