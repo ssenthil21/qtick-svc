@@ -88,6 +88,12 @@ async def chat(request: ChatRequest, authorization: Optional[str] = Header(None)
 async def health():
     return {"status": "ok"}
 
+@app.get("/debug/ip")
+async def debug_ip():
+    import httpx
+    r = httpx.get("https://ipinfo.io/json", timeout=5)
+    return r.json()
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
