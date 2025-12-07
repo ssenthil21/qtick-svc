@@ -79,3 +79,26 @@ class BusinessSummary(BaseModel):
     total_appointments: int
     total_revenue: float
     recent_activities: List[str]
+
+class Service(BaseModel):
+    id: Optional[int] = None
+    name: str
+    price: float
+    gender: Optional[str] = None
+    type: Optional[str] = None
+
+class BookingRequest(BaseModel):
+    bizId: int
+    phone: str
+    serviceIds: List[int]
+    dateTime: str
+
+class BookingResponse(BaseModel):
+    bookingId: int
+    date: str
+    time: str
+    custName: str
+    bizInfo: Dict[str, Any]
+    services: List[str]
+    additionalDescription: Optional[str] = None
+    accessToken: Optional[str] = None

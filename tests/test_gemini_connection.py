@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Get API key from environment
-api_key = os.getenv("GEMINI_API_KEY")
+api_key = os.getenv("GEMINI_STUDIO_API_KEY")
 
 if not api_key:
     print("Error: GEMINI_API_KEY not found in .env file or environment variables.")

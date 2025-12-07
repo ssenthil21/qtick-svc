@@ -8,9 +8,9 @@ def get_service(token: str = None):
         return MockService(token)
     return JavaService(token)
 
-async def get_summary_for_business(business_id: str, token: str = None) -> ToolResult:
+async def get_summary_for_business(business_id: str, from_date: str, to_date: str, token: str = None) -> ToolResult:
     """Get a summary for a business."""
     service = get_service(token)
-    data = await service.get_summary_for_business(business_id)
-    text = f"Business summary retrieved for ID {business_id}."
+    data = await service.get_summary_for_business(business_id, from_date, to_date)
+    text = f"Business summary retrieved for ID {business_id} from {from_date} to {to_date}."
     return ToolResult(type="get_summary_for_business", data=data, text=text)

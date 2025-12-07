@@ -2,18 +2,22 @@ import requests
 import json
 import time
 
-#BASE_URL = "http://localhost:8000/agent/chat"
-BASE_URL = "https://qtick-svc-du97k.ondigitalocean.app/agent/chat"
+BASE_URL = "http://localhost:8010/agent/chat"
+#BASE_URL = "https://qtick-svc-du97k.ondigitalocean.app/agent/chat"
 
-def run_prompt(prompt, description):
+def run_prompt(prompt, business_id, description):
     print(f"\n--- Test: {description} ---")
     print(f"Prompt: {prompt}")
+    print(f"Business ID: {business_id}")
     
     start_time = time.time()
     try:
         response = requests.post(
             BASE_URL, 
-            json={"prompt": prompt},
+            json={
+                "prompt": prompt,
+                "business_id": business_id
+            },
             headers={"Content-Type": "application/json"}
         )
         response.raise_for_status()
@@ -35,7 +39,7 @@ def run_prompt(prompt, description):
             return data.get("response")
     except Exception as e:
         print(f"Error: {e}")
-        if hasattr(e, 'response') and e.response:
+        if hasattr(e, 'response') and e.response is not None:
             print(f"Server response: {e.response.text}")
         return None
 
@@ -45,15 +49,33 @@ def main():
     test_cases = [
         {
             "name": "Create Lead (Java API)",
-            "prompt": "Create a new lead named 'Java Test User' with email 'java@test.com' and phone '98765432' for business ID 96."
+            "prompt": "Create a new lead named 'Enriched Test User' with email 'enriched@test.com' and phone '98765432' for business ID 96.",
+            "business_id": 96
         },
         {
             "name": "List Leads (Java API)",
-            "prompt": "List all leads for business ID 96."
+            "prompt": "List all leads for business ID 96.",
+            "business_id": 96
         },
         {
-            "name": "Create Appointment (Java API)",
-            "prompt": "Create a 'Consultation' appointment for customer 'CUST-001' with service name 'General Service' starting tomorrow at 10:00 AM for 1 hour."
+            "name": "Create Booking - Single Service (Java API)",
+            "prompt": "Book an appointment for business ID 96, phone '911234567890', service ID 455 on 2025-12-15T09:00:00.000+0000.",
+            "business_id": 96
+        },
+        {
+            "name": "Create Booking - Multi Service (Java API)",
+            "prompt": "Book an appointment for phone '911234567890', service Facial on 2025-12-16T14:30:00.000+0000.",
+            "business_id": 96
+        },
+        {
+            "name": "Get Business Summary (Java API)",
+            "prompt": "Get business summary for business ID 96 from 2025/11/01 to 2025/11/30.",
+            "business_id": 96
+        },
+        {
+            "name": "Search Services (Java API)",
+            "prompt": "Search for 'facial' services for business ID 119.",
+            "business_id": 119
         }
     ]
     
@@ -72,7 +94,7 @@ def main():
             index = int(choice) - 1
             if 0 <= index < len(test_cases):
                 test = test_cases[index]
-                run_prompt(test["prompt"], test["name"])
+                run_prompt(test["prompt"], test.get("business_id", 96), test["name"])
             else:
                 print("Invalid selection. Please try again.")
         except ValueError:

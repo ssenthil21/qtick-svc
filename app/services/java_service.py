@@ -1,5 +1,5 @@
 import httpx
-from app.models import Lead, Appointment, Invoice, BusinessSummary, LeadCreateRequest, LeadCreateResponse, LeadSummary, LeadListResponse
+from app.models import Lead, Appointment, Invoice, BusinessSummary, LeadCreateRequest, LeadCreateResponse, LeadSummary, LeadListResponse, Service, BookingRequest, BookingResponse
 from typing import List, Optional, Dict, Any
 from app.services.base import BaseService
 from app.config import settings
@@ -98,7 +98,7 @@ class JavaService(BaseService):
             "toDate": "",
         }
         data = await self._get(
-            f"/biz/{business_id}/sales-enq/list", params=params
+            f"/api/biz/{business_id}/sales-enq/list", params=params
         )
         
         leads: List[LeadSummary] = []
@@ -129,10 +129,32 @@ class JavaService(BaseService):
         response.raise_for_status()
         return response.json()
 
-    async def create_appointment(self, appointment: Appointment) -> Appointment:
-        response = await self.client.post("/appointments", json=appointment.dict(exclude={"id"}))
+    async def create_appointment(self, request: BookingRequest) -> BookingResponse:
+        headers = self.client.headers.copy()
+        headers["Authorization"] = "bizprofile-web:D9yGl4wpT1"
+        headers["Accept"] = "application/json"
+        
+        # We need to ensure we don't double-wrap the payload if httpx does it automatically
+        # But here we are passing a Pydantic model dict
+        payload = request.dict()
+        
+        response = await self.client.post("/web/v2/booking", json=payload, headers=headers)
+        
+        if response.is_success:
+            return BookingResponse(**response.json())
+        
+        # Handle error response
+        try:
+            error_data = response.json()
+            if "message" in error_data:
+                raise Exception(error_data["message"])
+        except ValueError:
+            # Not JSON or parsing failed, fall through to raise_for_status
+            pass
+            
         response.raise_for_status()
-        return Appointment(**response.json())
+        # Should not be reached if raise_for_status raises, but for type safety:
+        raise Exception(f"Unknown error: {response.status_code}")
 
     async def list_appointments(self) -> List[Appointment]:
         response = await self.client.get("/appointments")
@@ -163,10 +185,33 @@ class JavaService(BaseService):
         response.raise_for_status()
         return Invoice(**response.json())
 
-    async def get_summary_for_business(self, business_id: str) -> BusinessSummary:
-        response = await self.client.get(f"/business/{business_id}/summary")
+    async def get_summary_for_business(self, business_id: str, from_date: str, to_date: str) -> BusinessSummary:
+        params = {
+            "fromDate": from_date,
+            "toDate": to_date
+        }
+        # The user request specified POST for this endpoint
+        response = await self.client.get(f"/api/biz/{business_id}/summary", params=params)
         response.raise_for_status()
-        return BusinessSummary(**response.json())
+        data = response.json()
+        
+        return BusinessSummary(
+            business_id=str(business_id),
+            total_leads=data.get("leadsCount", 0),
+            total_appointments=data.get("appointmentsCount", 0),
+            total_revenue=float(data.get("totalRevenue", 0.0)),
+            recent_activities=data.get("recentActivities", [])
+        )
+
+    async def search_services(self, business_id: int, text: str, group_id: int = 0) -> List[Service]:
+        params = {
+            "bizId": int(business_id),
+            "text": text,
+            "groupId": int(group_id)
+        }
+        response = await self.client.get("/web/biz/services", params=params)
+        response.raise_for_status()
+        return [Service(**item) for item in response.json()]
 
 def _utc_now_iso() -> str:
     from datetime import datetime, timezone

@@ -1,31 +1,28 @@
 from datetime import datetime
+from typing import List
 from app.config import settings
 from app.services.mock_service import MockService
 from app.services.java_service import JavaService
-from app.models import Appointment, ToolResult
+from app.models import Appointment, ToolResult, BookingRequest
 
 def get_service(token: str = None):
     if settings.USE_MOCK_DATA:
         return MockService(token)
     return JavaService(token)
 
-async def create_appointment(customer_id: str, service_name: str, start_time: str, end_time: str, description: str = None, token: str = None) -> ToolResult:
-    """Create a new appointment. Times should be ISO 8601 strings."""
+async def create_appointment(business_id: int, phone: str, service_ids: List[int], date_time: str, token: str = None) -> ToolResult:
+    """Create a new appointment. date_time should be ISO 8601 string."""
     service = get_service(token)
-    # Parse strings to datetime
-    start = datetime.fromisoformat(start_time)
-    end = datetime.fromisoformat(end_time)
     
-    appt = Appointment(
-        customer_id=customer_id,
-        service_name=service_name,
-        start_time=start,
-        end_time=end,
-        description=description
+    request = BookingRequest(
+        bizId=int(business_id),
+        phone=phone,
+        serviceIds=[int(sid) for sid in service_ids],
+        dateTime=date_time
     )
 
-    result = await service.create_appointment(appt)
-    text = f"Appointment created successfully. ID: {result.id}"
+    result = await service.create_appointment(request)
+    text = f"Appointment created successfully. ID: {result.bookingId}. Status: Pending. Business: {result.bizInfo.get('name')}."
     return ToolResult(type="create_appointment", data=result, text=text)
 
 async def list_appointments(token: str = None) -> ToolResult:

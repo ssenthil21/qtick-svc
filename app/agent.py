@@ -3,7 +3,7 @@ import json
 from typing import Dict, Any, List
 from app.config import settings
 from app.models import ToolResult
-from app.tools import leads, appointments, invoices, business
+from app.tools import leads, appointments, invoices, business, catalog
 
 # Tool definitions for the LLM
 TOOLS_DEFINITIONS = [
@@ -58,13 +58,12 @@ TOOLS_DEFINITIONS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "customer_id": {"type": "string"},
-                    "service_name": {"type": "string"},
-                    "start_time": {"type": "string", "description": "ISO 8601 format"},
-                    "end_time": {"type": "string", "description": "ISO 8601 format"},
-                    "description": {"type": "string"}
+                    "business_id": {"type": "integer"},
+                    "phone": {"type": "string"},
+                    "service_ids": {"type": "array", "items": {"type": "integer"}},
+                    "date_time": {"type": "string", "description": "ISO 8601 format e.g. 2025-12-10T08:30:00.000+0000"}
                 },
-                "required": ["customer_id", "service_name", "start_time", "end_time"]
+                "required": ["business_id", "phone", "service_ids", "date_time"]
             }
         }
     },
@@ -137,9 +136,27 @@ TOOLS_DEFINITIONS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "business_id": {"type": "string"}
+                    "business_id": {"type": "string"},
+                    "from_date": {"type": "string", "description": "Start date in YYYY-MM-DD or YYYY/MM/DD format"},
+                    "to_date": {"type": "string", "description": "End date in YYYY-MM-DD or YYYY/MM/DD format"}
                 },
-                "required": ["business_id"]
+                "required": ["business_id", "from_date", "to_date"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_services",
+            "description": "Search for services in the business catalog",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "business_id": {"type": "integer"},
+                    "text": {"type": "string", "description": "Search text for service name"},
+                    "group_id": {"type": "integer", "description": "Group ID (default 0)"}
+                },
+                "required": ["business_id", "text"]
             }
         }
     }
@@ -189,6 +206,8 @@ class Agent:
                 result = await invoices.get_invoice(**arguments)
             elif tool_name == "get_summary_for_business":
                 result = await business.get_summary_for_business(**arguments)
+            elif tool_name == "search_services":
+                result = await catalog.search_services(**arguments)
             else:
                 logger.error(f"Tool '{tool_name}' not found")
                 return f"Error: Tool {tool_name} not found"
@@ -204,7 +223,17 @@ class Agent:
         from openai import AsyncOpenAI
         client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
         
-        messages = [{"role": "system", "content": "You are a helpful assistant for QTick. When listing items (leads, appointments, invoices), return ONLY a clean Markdown table. Use Title Case for headers (e.g., 'Lead ID', 'Name', 'Status', 'Created At', 'Phone', 'Email', 'Source', 'Value'). Do not include conversational filler."},
+        system_prompt = (
+            "You are a helpful assistant for QTick. "
+            "When listing items (leads, appointments, invoices, services), return ONLY a clean Markdown table. "
+            "Use Title Case for headers. "
+            "For appointment booking, if a service name is provided (not an ID), YOU MUST first use `search_services` to find the Service ID. "
+            "If exactly one service is found, proceed to `create_appointment` with that ID. "
+            "If multiple services are found, list them (ID, Name, Price) and ask the user to specify one. "
+            "DO NOT guess the Service ID."
+        )
+
+        messages = [{"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt}]
         
         response = await client.chat.completions.create(
@@ -307,12 +336,22 @@ class Agent:
                 parameters=func_def["parameters"]
             )
             gemini_tools.append(gemini_tool)
-            
+        
+        system_instruction = (
+            "You are a helpful assistant for QTick. "
+            "When listing items (leads, appointments, invoices, services), return ONLY a clean Markdown table. "
+            "Use Title Case for headers. "
+            "For appointment booking, if a service name is provided (not an ID), YOU MUST first use `search_services` to find the Service ID. "
+            "If exactly one service is found, proceed to `create_appointment` with that ID. "
+            "If multiple services are found, list them (ID, Name, Price) and ask the user to specify one. "
+            "DO NOT guess the Service ID."
+        )
+
         # Create the model with tools (declarations only)
         model = genai.GenerativeModel(
             model_name=settings.GEMINI_MODEL,
             tools=[Tool(function_declarations=gemini_tools)],
-            system_instruction="You are a helpful assistant for QTick. When listing items (leads, appointments, invoices), return ONLY a clean Markdown table. Use Title Case for headers (e.g., 'Lead ID', 'Name', 'Status', 'Created At', 'Phone', 'Email', 'Source', 'Value'). Do not include conversational filler."
+            system_instruction=system_instruction
         )
         
         # Disable automatic function calling so we can handle async execution manually
