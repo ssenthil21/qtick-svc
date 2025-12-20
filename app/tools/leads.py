@@ -1,3 +1,4 @@
+import logging
 from app.config import settings
 from app.services.mock_service import MockService
 from app.services.java_service import JavaService
@@ -25,10 +26,20 @@ async def create_lead(
     attention_staff_id: int = None,
     attention_channel: str = None,
     third_status: str = None,
+    service_name: str = None,
+    prompt: str = None,
     token: str = None
 ) -> LeadCreateResponse:
     """Create a new lead."""
     service = get_service(token)
+    
+    # If enquiry_for is not provided, use service_name, then original chat message (prompt)
+    if not enquiry_for:
+        if service_name:
+            enquiry_for = service_name
+        elif prompt:
+            enquiry_for = prompt
+        
     request = LeadCreateRequest(
         business_id=int(business_id),
         name=name,
@@ -45,11 +56,16 @@ async def create_lead(
         enquiry_for_time=enquiry_for_time,
         attention_staff_id=attention_staff_id,
         attention_channel=attention_channel,
-        third_status=third_status
+        third_status=third_status,
+        service_name=service_name
     )
     result = await service.create_lead(request)
-    text = f"Lead created successfully. ID: {result.lead_id}, Status: {result.status}"
-    return ToolResult(type="create_lead", data=result, text=text)
+    logging.info(result)    
+    return ToolResult(
+        type="create_lead",
+        data=result,
+        text=f"Lead created successfully. ID: {result.lead_id}, Customer: {result.custName}, Phone: {result.phone}, Enquiry For: {result.enqFor}, Value: {result.value}, Status: {result.status}"
+    )
 
 async def list_leads(business_id: int, token: str = None) -> ToolResult:
     """List all leads."""

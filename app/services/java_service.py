@@ -7,86 +7,129 @@ from app.config import settings
 class JavaService(BaseService):
     def __init__(self, token: str = None):
         self.base_url = settings.JAVA_API_BASE_URL
-        headers = {}
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
         if token:
-            headers["Authorization"] = f"Bearer {token}"
+            headers["Authorization"] = f"bearer {token}"
         elif settings.QTICK_JAVA_SERVICE_TOKEN:
-            headers["Authorization"] = f"Bearer {settings.QTICK_JAVA_SERVICE_TOKEN}"
-        self.client = httpx.AsyncClient(base_url=self.base_url, headers=headers)
+            headers["Authorization"] = f"bearer {settings.QTICK_JAVA_SERVICE_TOKEN}"
+        
+        # Ensure base_url ends with a slash for proper relative URL joining
+        if self.base_url and not self.base_url.endswith('/'):
+            self.base_url += '/'
+            
+        self.client = httpx.AsyncClient(base_url=self.base_url, headers=headers, follow_redirects=True)
 
     async def create_lead(self, request: LeadCreateRequest) -> LeadCreateResponse:
         try:
-            now_iso = _utc_now_iso()
-            follow_up_date = request.follow_up_date or now_iso
-            enquired_on = request.enquired_on or now_iso
-            enquiry_for_time = request.enquiry_for_time or now_iso
+            from datetime import datetime, timedelta, timezone
+            now = datetime.now(timezone.utc)
+            
+            # Format: 2025-12-20T03:41:00.000+0000
+            date_format = "%Y-%m-%dT%H:%M:%S.000+0000"
+            enquired_on = request.enquired_on or now.strftime(date_format)
+            follow_up_date = request.follow_up_date or (now + timedelta(days=2)).strftime(date_format)
+            enquiry_for_time = request.enquiry_for_time or now.strftime(date_format)
 
-            details_lines: List[str] = []
-            if request.details:
-                details_lines.append(request.details)
-            if request.notes and request.notes not in details_lines:
-                details_lines.append(request.notes)
-            if request.source and request.source not in ("", None):
-                details_lines.append(f"Source: {request.source}")
+            # Service Lookup
+            services_payload = []
+            if request.service_name:
+                try:
+                    found_services = await self.search_services(request.business_id, request.service_name)
+                    if found_services:
+                        # Take the first match
+                        s = found_services[0]
+                        services_payload.append({
+                            "id": s.id,
+                            "name": s.name
+                        })
+                        # Update enquiry_for to the canonical name of the service
+                        request.enquiry_for = s.name
+                except Exception as e:
+                    import logging
+                    logging.error(f"Error looking up service '{request.service_name}': {e}")
 
             payload: Dict[str, Any] = {
                 "bizId": request.business_id,
                 "phone": request.phone.replace('+', '') if request.phone else None,
+                "email": request.email,
                 "custName": request.name,
-                "location": request.location,
-                "enqFor": request.enquiry_for,
-                "srcChannel": _map_source_to_channel(request.source),
-                "campId": 38,
-                "campName": 'Campaign',
-                "location":"Serangoon",
-                "enqFor":"Offer",
-                "details": "",
-                "thdStatus": "A",
-                "interest": 3,
+                "enqFor": request.enquiry_for[:100] if request.enquiry_for else None,
+                "srcChannel": "PH", # Fixed as per user sample "PH"
+                "campId": None,
+                "campName": None,
+                "details": request.details or "",
+                "interest": request.interest or 2,
+                "enqForTime": enquiry_for_time,
                 "followUpDate": follow_up_date,
                 "enquiredOn": enquired_on,
-                "enqForTime": enquiry_for_time,
-                "attnStaffId": request.attention_staff_id or 21,
-                "attnChannel": request.attention_channel or "P",
+                "attnStaffId": request.attention_staff_id or 475,
+                "enqNo": None,
+                "custId": None,
+                "services": services_payload
             }
-            # payload = _filter_payload(payload, preserve_keys={"campId", "campName"}) # Simplified: sending full payload for now
+
+            # Include null values as required by API
+            # payload = {k: v for k, v in payload.items() if v is not None}
 
             import logging
-            logging.info(f"Sending create_lead payload: {payload}")
+            import json
+            logging.info(f"Sending create_lead payload:\n{json.dumps(payload, indent=2, default=str)}")
 
-            data = await self._post("/biz/sales-enq", payload)
+            data = await self._post("api/biz/sales-enq", payload)
+            logging.info(f"Received create_lead response:\n{json.dumps(data, indent=2, default=str)}")
             
-            record = {
-                "bizId": data.get("bizId"),
-                "custId": data.get("custId"),
-                "enqNo": data.get("enqNo"),
-                "custName": data.get("custName"),
-                "phone": data.get("phone"),
-                "enqFor": data.get("enqFor"),
-                "status": data.get("status"),
-                "followUpDate": data.get("followUpDate"),
-                "thdStatus": data.get("thdStatus"),
-                "threadCount": data.get("threadCount"),
-            }
-            
-            print(record)
+            # The API returns several fields, we map them back
             return LeadCreateResponse(
-                lead_id=str(record["bizId"]),         # fixed
-                status=str(record["status"]), 
+                lead_id=str(data.get("enqNo") or data.get("bizId")),
+                status=str(data.get("status") or "NEW"), 
                 created_at=str(enquired_on),
-                next_action=str("Followup"),
+                next_action="Followup",
+                custName=data.get("custName"),
+                phone=data.get("phone"),
+                enqFor=data.get("enqFor"),
+                value=float(data.get("value") or 0.0)
             )
         except Exception as exc:
+            import logging
+            logging.error(f"Failed to create lead: {exc}", exc_info=True)
             raise Exception(f"Failed to create lead: {exc}")
 
     async def _post(self, url: str, json_data: dict) -> dict:
         import logging
-        # Log headers to debug authentication (be careful with secrets in prod!)
-        logging.info(f"POST {url}")
-        logging.info(f"Headers: {dict(self.client.headers)}")
-        response = await self.client.post(url, json=json_data)
-        response.raise_for_status()
-        return response.json()
+        import json
+        
+        # Ensure url does not have double slashes if base_url ends with one
+        request_url = url.lstrip('/')
+        
+        logging.info(f"POST {request_url}")
+        logging.info(f"Request Headers: {dict(self.client.headers)}")
+        logging.info(f"Request Body: {json.dumps(json_data, indent=2)}")
+        
+        response = await self.client.post(request_url, json=json_data)
+        
+        logging.info(f"Response Status: {response.status_code}")
+        logging.info(f"Response Headers: {dict(response.headers)}")
+        logging.info(f"Response Content: '{response.text}'")
+        
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            logging.error(f"POST {request_url} failed with {response.status_code}: {response.text}")
+            raise e
+
+        if not response.content:
+            logging.warning(f"POST {request_url} returned empty content")
+            return {}
+
+        try:
+            return response.json()
+        except Exception as e:
+            logging.error(f"Failed to parse JSON from POST {request_url}. Content: {response.text}")
+            raise e
 
     async def list_leads(self, business_id: int) -> LeadListResponse:
         params = {
@@ -98,7 +141,7 @@ class JavaService(BaseService):
             "toDate": "",
         }
         data = await self._get(
-            f"/api/biz/{business_id}/sales-enq/list", params=params
+            f"api/biz/{business_id}/sales-enq/list", params=params
         )
         
         leads: List[LeadSummary] = []
@@ -121,24 +164,45 @@ class JavaService(BaseService):
             items=leads
         )
 
-    async def _get(self, url: str, params: dict = None) -> dict:
+    async def _get(self, url: str, params: dict = None) -> Any:
         import logging
-        logging.info(f"GET {url}")
-        logging.info(f"Headers: {dict(self.client.headers)}")
-        response = await self.client.get(url, params=params)
-        response.raise_for_status()
-        return response.json()
+        
+        request_url = url.lstrip('/')
+        
+        logging.info(f"GET {request_url}")
+        logging.info(f"Params: {params}")
+        logging.info(f"Request Headers: {dict(self.client.headers)}")
+        
+        response = await self.client.get(request_url, params=params)
+        
+        logging.info(f"Response Status: {response.status_code}")
+        logging.info(f"Response Headers: {dict(response.headers)}")
+        logging.info(f"Response Content: '{response.text}'")
+        
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            logging.error(f"GET {request_url} failed with {response.status_code}: {response.text}")
+            raise e
+
+        if not response.content:
+            logging.warning(f"GET {request_url} returned empty content")
+            return {}
+
+        try:
+            return response.json()
+        except Exception as e:
+            logging.error(f"Failed to parse JSON from GET {request_url}. Content: {response.text}")
+            raise e
 
     async def create_appointment(self, request: BookingRequest) -> BookingResponse:
         headers = self.client.headers.copy()
         headers["Authorization"] = "bizprofile-web:D9yGl4wpT1"
         headers["Accept"] = "application/json"
         
-        # We need to ensure we don't double-wrap the payload if httpx does it automatically
-        # But here we are passing a Pydantic model dict
         payload = request.dict()
         
-        response = await self.client.post("/web/v2/booking", json=payload, headers=headers)
+        response = await self.client.post("web/v2/booking", json=payload, headers=headers)
         
         if response.is_success:
             return BookingResponse(**response.json())
@@ -149,37 +213,35 @@ class JavaService(BaseService):
             if "message" in error_data:
                 raise Exception(error_data["message"])
         except ValueError:
-            # Not JSON or parsing failed, fall through to raise_for_status
             pass
             
         response.raise_for_status()
-        # Should not be reached if raise_for_status raises, but for type safety:
         raise Exception(f"Unknown error: {response.status_code}")
 
     async def list_appointments(self) -> List[Appointment]:
-        response = await self.client.get("/appointments")
+        response = await self.client.get("appointments")
         response.raise_for_status()
         return [Appointment(**item) for item in response.json()]
 
     async def get_appointment(self, appointment_id: str) -> Optional[Appointment]:
-        response = await self.client.get(f"/appointments/{appointment_id}")
+        response = await self.client.get(f"appointments/{appointment_id}")
         if response.status_code == 404:
             return None
         response.raise_for_status()
         return Appointment(**response.json())
 
     async def create_invoice(self, invoice: Invoice) -> Invoice:
-        response = await self.client.post("/invoices", json=invoice.dict(exclude={"id", "created_at"}))
+        response = await self.client.post("invoices", json=invoice.dict(exclude={"id", "created_at"}))
         response.raise_for_status()
         return Invoice(**response.json())
 
     async def list_invoices(self) -> List[Invoice]:
-        response = await self.client.get("/invoices")
+        response = await self.client.get("invoices")
         response.raise_for_status()
         return [Invoice(**item) for item in response.json()]
 
     async def get_invoice(self, invoice_id: str) -> Optional[Invoice]:
-        response = await self.client.get(f"/invoices/{invoice_id}")
+        response = await self.client.get(f"invoices/{invoice_id}")
         if response.status_code == 404:
             return None
         response.raise_for_status()
@@ -190,10 +252,8 @@ class JavaService(BaseService):
             "fromDate": from_date,
             "toDate": to_date
         }
-        # The user request specified POST for this endpoint
-        response = await self.client.get(f"/api/biz/{business_id}/summary", params=params)
-        response.raise_for_status()
-        data = response.json()
+        # Fixed to use self._get which handles relative URLs correctly
+        data = await self._get(f"api/biz/{business_id}/summary", params=params)
         
         return BusinessSummary(
             business_id=str(business_id),
@@ -209,9 +269,9 @@ class JavaService(BaseService):
             "text": text,
             "groupId": int(group_id)
         }
-        response = await self.client.get("/web/biz/services", params=params)
-        response.raise_for_status()
-        return [Service(**item) for item in response.json()]
+        # Fixed to use self._get which handles relative URLs correctly
+        response = await self._get("web/biz/services", params=params)
+        return [Service(**item) for item in response]
 
 def _utc_now_iso() -> str:
     from datetime import datetime, timezone

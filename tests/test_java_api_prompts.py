@@ -2,7 +2,7 @@ import requests
 import json
 import time
 
-BASE_URL = "http://localhost:8010/agent/chat"
+BASE_URL = "http://localhost:8000/agent/chat"
 #BASE_URL = "https://qtick-svc-du97k.ondigitalocean.app/agent/chat"
 
 def run_prompt(prompt, business_id, description):
@@ -53,18 +53,23 @@ def main():
             "business_id": 96
         },
         {
+            "name": "Create Lead with Service (Java API)",
+            "prompt": "Create a new lead for 'user2' with phone '91944367165454' interested in 'Gents Cut' at business 96.",
+            "business_id": 96
+        },
+        {
             "name": "List Leads (Java API)",
             "prompt": "List all leads for business ID 96.",
             "business_id": 96
         },
         {
             "name": "Create Booking - Single Service (Java API)",
-            "prompt": "Book an appointment for business ID 96, phone '911234567890', service ID 455 on 2025-12-15T09:00:00.000+0000.",
+            "prompt": "Book an appointment for business ID 96, phone '911234567890', for service Simple Facial on 2025-12-22T09:00:00.000+0000.",
             "business_id": 96
         },
         {
             "name": "Create Booking - Multi Service (Java API)",
-            "prompt": "Book an appointment for phone '911234567890', service Facial on 2025-12-16T14:30:00.000+0000.",
+            "prompt": "Book an appointment for phone '911234567890', service Facial on 2025-12-23T14:30:00.000+0000.",
             "business_id": 96
         },
         {

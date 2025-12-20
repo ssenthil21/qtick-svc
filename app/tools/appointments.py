@@ -4,6 +4,7 @@ from app.config import settings
 from app.services.mock_service import MockService
 from app.services.java_service import JavaService
 from app.models import Appointment, ToolResult, BookingRequest
+from app.utils.date_utils import parse_date_flexible
 
 def get_service(token: str = None):
     if settings.USE_MOCK_DATA:
@@ -11,7 +12,8 @@ def get_service(token: str = None):
     return JavaService(token)
 
 async def create_appointment(business_id: int, phone: str, service_ids: List[int], date_time: str, token: str = None) -> ToolResult:
-    """Create a new appointment. date_time should be ISO 8601 string."""
+    """Create a new appointment. Supports natural language dates."""
+    date_time = parse_date_flexible(date_time)
     service = get_service(token)
     
     request = BookingRequest(

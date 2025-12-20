@@ -32,6 +32,7 @@ class LeadCreateRequest(BaseModel):
     attention_staff_id: Optional[int] = None
     attention_channel: Optional[str] = None
     third_status: Optional[str] = None
+    service_name: Optional[str] = None
 
 class LeadCreateResponse(BaseModel):
     lead_id: str
@@ -39,6 +40,10 @@ class LeadCreateResponse(BaseModel):
     created_at: str
     next_action: str
     follow_up_required: bool = True
+    custName: Optional[str] = None
+    phone: Optional[str] = None
+    enqFor: Optional[str] = None
+    value: float = 0.0
 
 class LeadSummary(BaseModel):
     lead_id: str

@@ -22,7 +22,7 @@ TOOLS_DEFINITIONS = [
                     "source": {"type": "string"},
                     "notes": {"type": "string"},
                     "location": {"type": "string"},
-                    "enquiry_for": {"type": "string"},
+                    "enquiry_for": {"type": "string", "description": "Subject of enquiry. If not specified, the system will use the original chat message as the default."},
                     "details": {"type": "string"},
                     "interest": {"type": "integer"},
                     "follow_up_date": {"type": "string"},
@@ -30,7 +30,8 @@ TOOLS_DEFINITIONS = [
                     "enquiry_for_time": {"type": "string"},
                     "attention_staff_id": {"type": "integer"},
                     "attention_channel": {"type": "string"},
-                    "third_status": {"type": "string"}
+                    "third_status": {"type": "string"},
+                    "service_name": {"type": "string", "description": "The name of the service the lead is interested in"}
                 },
                 "required": ["name", "business_id"]
             }
@@ -61,7 +62,7 @@ TOOLS_DEFINITIONS = [
                     "business_id": {"type": "integer"},
                     "phone": {"type": "string"},
                     "service_ids": {"type": "array", "items": {"type": "integer"}},
-                    "date_time": {"type": "string", "description": "ISO 8601 format e.g. 2025-12-10T08:30:00.000+0000"}
+                    "date_time": {"type": "string", "description": "Appointment date/time. Supports natural language (e.g., 'tomorrow at 10am', 'next Friday', 'Dec 24') or ISO 8601 format."}
                 },
                 "required": ["business_id", "phone", "service_ids", "date_time"]
             }
@@ -181,7 +182,7 @@ class Agent:
         else:
             return {"type": "Error", "response_text": "Unsupported LLM provider", "response_value": None}
 
-    async def _execute_tool(self, tool_name: str, arguments: Dict[str, Any], token: str = None) -> Any:
+    async def _execute_tool(self, tool_name: str, arguments: Dict[str, Any], token: str = None, prompt: str = None) -> Any:
         logger.info(f"Executing tool '{tool_name}' with args: {arguments}")
         # Inject token into arguments if available
         if token:
@@ -189,6 +190,7 @@ class Agent:
             
         try:
             if tool_name == "create_lead":
+                arguments["prompt"] = prompt
                 result = await leads.create_lead(**arguments)
             elif tool_name == "list_leads":
                 result = await leads.list_leads(**arguments)
@@ -258,7 +260,7 @@ class Agent:
                 function_args = json.loads(tool_call.function.arguments)
                 
                 logger.info(f"Agent calling tool: {function_name}")
-                raw_result = await self._execute_tool(function_name, function_args, token)
+                raw_result = await self._execute_tool(function_name, function_args, token, prompt)
                 
                 last_tool_name = function_name
                 last_tool_result = raw_result
@@ -368,6 +370,24 @@ class Agent:
         # We need to loop until the model stops calling functions
         
         while True:
+            if not response.candidates or not response.candidates[0].content.parts:
+                logger.warning(f"Gemini returned an empty response: {response}")
+                
+                # FALLBACK: If we have a last_tool_result, use its text as the response
+                if last_tool_result and isinstance(last_tool_result, ToolResult):
+                    logger.info("Using tool result text as fallback response")
+                    return {
+                        "type": last_tool_result.type,
+                        "response_text": last_tool_result.text,
+                        "response_value": last_tool_result.data.dict() if hasattr(last_tool_result.data, "dict") else last_tool_result.data
+                    }
+                
+                return {
+                    "type": "Error",
+                    "response_text": "I'm sorry, I received an empty response from the AI. Please try again.",
+                    "response_value": None
+                }
+                
             part = response.candidates[0].content.parts[0]
             
             if part.function_call:
@@ -378,29 +398,31 @@ class Agent:
                 
                 # Execute the tool (awaiting the async function)
                 # _execute_tool now returns the raw object (Pydantic model or list)
-                raw_result = await self._execute_tool(function_name, function_args, token)
+                raw_result = await self._execute_tool(function_name, function_args, token, prompt)
                 
                 last_tool_name = function_name
                 last_tool_result = raw_result
                 
-                # Convert to JSON for LLM consumption
+                # Convert to dict for LLM consumption
                 if isinstance(raw_result, ToolResult):
                     inner_result = raw_result.data
                     if isinstance(inner_result, list):
-                        json_result = json.dumps([item.dict() for item in inner_result], default=str)
+                        msg_result = [json.loads(item.json()) if hasattr(item, "json") else item.dict() if hasattr(item, "dict") else item for item in inner_result]
+                    elif hasattr(inner_result, "json"):
+                        msg_result = json.loads(inner_result.json())
                     elif hasattr(inner_result, "dict"):
-                        json_result = json.dumps(inner_result.dict(), default=str)
+                        msg_result = inner_result.dict()
                     else:
-                        json_result = str(inner_result)
+                        msg_result = {"result": str(inner_result)}
                 elif isinstance(raw_result, list):
-                    json_result = json.dumps([item.dict() for item in raw_result], default=str)
+                    msg_result = [item.dict() if hasattr(item, "dict") else item for item in raw_result]
                 elif hasattr(raw_result, "dict"):
-                    json_result = json.dumps(raw_result.dict(), default=str)
+                    msg_result = raw_result.dict()
                 else:
-                    json_result = str(raw_result)
+                    msg_result = {"result": str(raw_result)}
                 
                 logger.info(f"Tool Raw Result: {raw_result}")
-                logger.info(f"Tool Formatted Result: {json_result}")
+                logger.info(f"Tool Formatted Result for Gemini: {msg_result}")
                 
                 
                 # Send the response back to the model
@@ -413,7 +435,7 @@ class Agent:
                 response = await chat.send_message_async(
                     Part(function_response=FunctionResponse(
                         name=function_name,
-                        response={"result": json_result}
+                        response=msg_result if isinstance(msg_result, dict) else {"result": msg_result}
                     ))
                 )
             else:
