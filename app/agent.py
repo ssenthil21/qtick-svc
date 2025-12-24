@@ -325,6 +325,7 @@ class Agent:
     async def _process_gemini(self, prompt: str, token: str = None) -> Dict[str, Any]:
         import google.generativeai as genai
         from google.generativeai.types import FunctionDeclaration, Tool
+        from google.ai.generativelanguage import Part, FunctionResponse
         
         genai.configure(api_key=settings.GEMINI_API_KEY)
         
@@ -365,39 +366,36 @@ class Agent:
         last_tool_name = "Chat"
         last_tool_result = None
         
-        # Check if the model wants to call a function
-        # Gemini returns function calls in candidates[0].content.parts
-        # We need to loop until the model stops calling functions
-        
+        # Loop until the model stops calling functions
         while True:
-            if not response.candidates or not response.candidates[0].content.parts:
-                logger.warning(f"Gemini returned an empty response: {response}")
-                
-                # FALLBACK: If we have a last_tool_result, use its text as the response
-                if last_tool_result and isinstance(last_tool_result, ToolResult):
-                    logger.info("Using tool result text as fallback response")
-                    return {
-                        "type": last_tool_result.type,
-                        "response_text": last_tool_result.text,
-                        "response_value": last_tool_result.data.dict() if hasattr(last_tool_result.data, "dict") else last_tool_result.data
-                    }
-                
-                return {
-                    "type": "Error",
-                    "response_text": "I'm sorry, I received an empty response from the AI. Please try again.",
-                    "response_value": None
-                }
-                
-            part = response.candidates[0].content.parts[0]
+            # Check for candidates and parts
+            if not response.candidates:
+                logger.error(f"Gemini returned no candidates: {response}")
+                break
+
+            candidate = response.candidates[0]
+            parts = candidate.content.parts
             
-            if part.function_call:
-                function_name = part.function_call.name
-                function_args = dict(part.function_call.args)
+            if not parts:
+                logger.info("Response has no parts (possibly terminal or safety blocked)")
+                break
+
+            # Check if there are any function calls in any of the parts
+            function_calls = [p.function_call for p in parts if p.function_call]
+            
+            if not function_calls:
+                logger.info("No more function calls in this turn")
+                break
+                
+            # Process all function calls in this turn
+            responses = []
+            for fc in function_calls:
+                function_name = fc.name
+                function_args = dict(fc.args)
                 
                 logger.info(f"Gemini requested tool call: {function_name}")
                 
-                # Execute the tool (awaiting the async function)
-                # _execute_tool now returns the raw object (Pydantic model or list)
+                # Execute the tool
                 raw_result = await self._execute_tool(function_name, function_args, token, prompt)
                 
                 last_tool_name = function_name
@@ -421,50 +419,53 @@ class Agent:
                 else:
                     msg_result = {"result": str(raw_result)}
                 
-                logger.info(f"Tool Raw Result: {raw_result}")
-                logger.info(f"Tool Formatted Result for Gemini: {msg_result}")
+                logger.debug(f"Tool Formatted Result for Gemini: {msg_result}")
                 
-                
-                # Send the response back to the model
-                # We need to construct the response part correctly
-                from google.ai.generativelanguage import Part, FunctionResponse
-                
-                logger.info(f"Sending tool result back to Gemini")
-                
-                # The library expects a specific format for function responses
-                response = await chat.send_message_async(
-                    Part(function_response=FunctionResponse(
-                        name=function_name,
-                        response=msg_result if isinstance(msg_result, dict) else {"result": msg_result}
-                    ))
-                )
-            else:
-                # No more function calls, return the text response
-                logger.info("Gemini response complete")
-                
-                # Prepare response value for API
-                response_value = None
-                response_text = response.text
-                response_type = last_tool_name
-                
-                if last_tool_result:
-                    if isinstance(last_tool_result, ToolResult):
-                        response_value = last_tool_result.data
-                        if hasattr(response_value, "dict"):
-                            response_value = response_value.dict()
-                        # Use the text from the tool result as the main response text
-                        response_text = last_tool_result.text
-                        # Use the type from the tool result
-                        response_type = last_tool_result.type
-                    elif isinstance(last_tool_result, list):
-                        response_value = [item.dict() for item in last_tool_result]
-                    elif hasattr(last_tool_result, "dict"):
-                        response_value = last_tool_result.dict()
-                    else:
-                        response_value = last_tool_result
+                # Add to responses list
+                responses.append(Part(function_response=FunctionResponse(
+                    name=function_name,
+                    response=msg_result if isinstance(msg_result, dict) else {"result": msg_result}
+                )))
+            
+            # Send all responses back in one message
+            logger.info(f"Sending {len(responses)} tool results back to Gemini")
+            response = await chat.send_message_async(responses)
 
-                return {
-                    "type": response_type,
-                    "response_text": response_text,
-                    "response_value": response_value
-                }
+        # Final terminal response processing
+        response_text = ""
+        response_value = None
+        response_type = last_tool_name
+
+        # Concatenate text from all parts if available
+        if response.candidates and response.candidates[0].content.parts:
+            text_parts = [p.text for p in response.candidates[0].content.parts if p.text]
+            response_text = "\n".join(text_parts).strip()
+
+        # If we have a tool result, prefer its text and data
+        if last_tool_result:
+            if isinstance(last_tool_result, ToolResult):
+                response_value = last_tool_result.data
+                if hasattr(response_value, "dict"):
+                    response_value = response_value.dict()
+                
+                # If Gemini didn't give any final text, use the tool result text
+                if not response_text:
+                    response_text = last_tool_result.text
+                
+                response_type = last_tool_result.type
+            elif isinstance(last_tool_result, list):
+                response_value = [item.dict() if hasattr(item, "dict") else item for item in last_tool_result]
+            elif hasattr(last_tool_result, "dict"):
+                response_value = last_tool_result.dict()
+            else:
+                response_value = last_tool_result
+        
+        # Fallback for empty text
+        if not response_text:
+            response_text = "I've completed your request."
+
+        return {
+            "type": response_type,
+            "response_text": response_text,
+            "response_value": response_value
+        }

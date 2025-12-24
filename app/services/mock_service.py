@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from typing import List, Optional
-from app.models import Lead, Appointment, Invoice, BusinessSummary, LeadCreateRequest, LeadCreateResponse, LeadSummary, LeadListResponse
+from app.models import Lead, Appointment, Invoice, BusinessSummary, LeadCreateRequest, LeadCreateResponse, LeadSummary, LeadListResponse, Service, BookingRequest, BookingResponse
 from app.services.base import BaseService
 
 class MockService(BaseService):
@@ -41,10 +41,15 @@ class MockService(BaseService):
         ]
         return LeadListResponse(total=len(summaries), items=summaries)
 
-    async def create_appointment(self, appointment: Appointment) -> Appointment:
-        appointment.id = str(uuid.uuid4())
-        self.appointments.append(appointment)
-        return appointment
+    async def create_appointment(self, request: BookingRequest) -> BookingResponse:
+        return BookingResponse(
+            bookingId=123,
+            date=request.dateTime.split('T')[0],
+            time=request.dateTime.split('T')[1].split('.')[0],
+            custName="Mock Customer",
+            bizInfo={"name": "Mock Business", "id": request.bizId},
+            services=[f"Service {sid}" for sid in request.serviceIds]
+        )
 
     async def list_appointments(self) -> List[Appointment]:
         return self.appointments
@@ -83,3 +88,8 @@ class MockService(BaseService):
             total_revenue=total_revenue,
             recent_activities=["New lead created", "Invoice paid"]
         )
+
+    async def search_services(self, business_id: int, text: str, group_id: int = 0) -> List[Service]:
+        return [
+            Service(id=454, name="Simple Facial", price=590.0, gender=None, type="S")
+        ]
