@@ -7,6 +7,7 @@ from app.agent import Agent
 from app.website_agent import WebsiteAgent
 import logging
 import sys
+from app.utils.mappings import get_business_id_by_phone, add_mapping
 
 # Configure logging
 logging.basicConfig(
@@ -80,6 +81,13 @@ class WebsiteChatResponse(BaseModel):
     response_text: str
     action: Optional[str] = None
 
+class BusinessLookupRequest(BaseModel):
+    phone: str
+
+class BusinessRegisterRequest(BaseModel):
+    phone: str
+    business_id: int
+
 
 
 @app.post("/agent/chat", response_model=ChatResponse)
@@ -119,6 +127,22 @@ async def website_chat(request: WebsiteChatRequest, authorization: Optional[str]
     except Exception as e:
         logging.error(f"Error processing website chat: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/business/lookup", response_model=int)
+async def business_lookup(request: BusinessLookupRequest):
+    business_id = get_business_id_by_phone(request.phone)
+    if business_id:
+        return business_id
+    else:
+        raise HTTPException(status_code=404, detail="Business not found for the given phone number")
+
+@app.post("/business/register")
+async def business_register(request: BusinessRegisterRequest):
+    success = add_mapping(request.phone, request.business_id)
+    if success:
+        return {"message": "Mapping registered successfully", "phone": request.phone, "business_id": request.business_id}
+    else:
+        raise HTTPException(status_code=400, detail=f"Business ID {request.business_id} is already assigned to another phone number")
 
 @app.get("/health")
 async def health():
