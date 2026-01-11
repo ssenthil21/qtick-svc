@@ -1,9 +1,17 @@
 import requests
 import json
 import time
+import sys
+import io
 
-#BASE_URL = "http://localhost:8001/agent/chat"
-BASE_URL = "https://qtick-svc-du97k.ondigitalocean.app/agent/chat"
+# Force UTF-8 encoding for stdout and stderr to handle emojis on Windows terminals
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+if sys.stderr.encoding != 'utf-8':
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
+BASE_URL = "http://localhost:8001/agent/chat"
+#BASE_URL = "https://qtick-svc-du97k.ondigitalocean.app/agent/chat"
 
 def run_prompt(prompt, business_id, description):
     print(f"\n--- Test: {description} ---")
@@ -74,13 +82,13 @@ def main():
         },
         {
             "name": "Get Business Summary (Java API)",
-            "prompt": "Get business summary for business ID 96 from 2025/11/01 to 2025/11/30.",
+            "prompt": "Get business summary from 2025/11/01 to 2025/11/30.",
             "business_id": 96
         },
         {
             "name": "Search Services (Java API)",
-            "prompt": "Search for 'facial' services for business ID 119.",
-            "business_id": 119
+            "prompt": "Search for 'facial' services for business ID 96.",
+            "business_id": 96
         }
     ]
     
@@ -88,6 +96,7 @@ def main():
         print("\nAvailable Test Cases:")
         for i, test in enumerate(test_cases):
             print(f"{i + 1}. {test['name']}")
+        print("99. Custom Prompt")
         print("0. Exit")
         
         try:
@@ -95,6 +104,40 @@ def main():
             if choice == "0":
                 print("Exiting...")
                 break
+            
+            if choice == "99":
+                custom_prompt = input("Enter custom prompt: ")
+                custom_phone = input("Enter phone number (default 6592701525): ")
+                if not custom_phone:
+                    custom_phone = "6592701525"
+                
+                # Use the phone chat endpoint for custom prompts
+                phone_chat_url = BASE_URL.replace("/agent/chat", "/agent/phone/chat")
+                print(f"\n--- Custom Phone Test ---")
+                print(f"URL: {phone_chat_url}")
+                print(f"Prompt: {custom_prompt}")
+                print(f"Phone: {custom_phone}")
+                
+                start_time = time.time()
+                try:
+                    response = requests.post(
+                        phone_chat_url, 
+                        json={
+                            "prompt": custom_prompt,
+                            "phone": custom_phone
+                        },
+                        headers={"Content-Type": "application/json"}
+                    )
+                    response.raise_for_status()
+                    data = response.json()
+                    print(f"Response ({time.time() - start_time:.2f}s):")
+                    print(f"Text: {data.get('response_text')}")
+                    print(f"Value: {json.dumps(data.get('response_value'), indent=2)}")
+                except Exception as e:
+                    print(f"Error: {e}")
+                    if hasattr(e, 'response') and e.response is not None:
+                        print(f"Server response: {e.response.text}")
+                continue
                 
             index = int(choice) - 1
             if 0 <= index < len(test_cases):

@@ -104,7 +104,8 @@ class JavaService(BaseService):
                 custName=data.get("custName"),
                 phone=data.get("phone"),
                 enqFor=data.get("enqFor"),
-                value=float(data.get("value") or 0.0)
+                value=float(data.get("value") or 0.0),
+                leadValue=float(data.get("leadValue") or 0.0)
             )
         except Exception as exc:
             import logging
@@ -168,7 +169,8 @@ class JavaService(BaseService):
                 phone=item.get("phone") or "N/A",
                 email=item.get("email") or "N/A",         # Java API might not have email, default to N/A
                 source=item.get("srcChannel") or "N/A",
-                value=float(item.get("value", 0.0))       # Default value to 0.0
+                value=float(item.get("value", 0.0)),
+                leadValue=float(item.get("leadValue", 0.0))
             )
             leads.append(lead)
 
@@ -272,6 +274,7 @@ class JavaService(BaseService):
             business_id=str(business_id),
             total_leads=data.get("leadsCount", 0),
             total_appointments=data.get("appointmentsCount", 0),
+            bills_count=data.get("billsCount", 0),
             total_revenue=float(data.get("totalRevenue") or data.get("revenue") or 0.0),
             recent_activities=data.get("recentActivities", [])
         )

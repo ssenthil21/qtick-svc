@@ -27,7 +27,8 @@ class MockService(BaseService):
             custName=request.name,
             phone=request.phone,
             enqFor=request.enquiry_for,
-            value=0.0
+            value=0.0,
+            leadValue=0.0
         )
 
     async def list_leads(self, business_id: int) -> LeadListResponse:
@@ -40,7 +41,8 @@ class MockService(BaseService):
                 phone=l.phone or "N/A",
                 email=l.email or "N/A",
                 source="mock",
-                value=0.0
+                value=0.0,
+                leadValue=0.0
             ) for l in self.leads
         ]
         return LeadListResponse(total=len(summaries), items=summaries)
@@ -89,6 +91,7 @@ class MockService(BaseService):
             business_id=business_id,
             total_leads=total_leads,
             total_appointments=total_appointments,
+            bills_count=total_appointments,
             total_revenue=total_revenue,
             recent_activities=["New lead created", "Invoice paid"]
         )

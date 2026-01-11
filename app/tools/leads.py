@@ -17,7 +17,7 @@ def format_whatsapp_lead_create(result: LeadCreateResponse) -> str:
         f"👤 *Name:* {result.custName}\n"
         f"📞 *Phone:* {result.phone}\n"
         f"📝 *Enquiry For:* {result.enqFor}\n"
-        f"💰 *Potential Value:* ₹{result.value:,.2f}\n"
+        f"💰 *Potential Value:* ₹{result.leadValue:,.2f}\n"
         f"📍 *Status:* {result.status}\n\n"
         f"Go to QTick to manage this lead! 🚀"
     )
@@ -26,12 +26,19 @@ def format_whatsapp_lead_create(result: LeadCreateResponse) -> str:
 def format_whatsapp_lead_list(data: LeadListResponse, business_id: int) -> str:
     """Format lead list for WhatsApp."""
     lead_count = len(data.items)
-    message = f"📋 *Lead List for Biz #{business_id}*\n"
-    message += f"Total Leads: {data.total}\n\n"
+    total_value = sum(item.leadValue for item in data.items)
     
+    # Sort leads by value descending for the top 5 list
+    sorted_items = sorted(data.items, key=lambda x: x.leadValue, reverse=True)
+    
+    message = f"📋 *Lead List for Biz #{business_id}*\n"
+    message += f"👥 Total Leads: {data.total}\n"
+    message += f"💰 Total Potential Value: ₹{total_value:,.2f}\n\n"
+    
+    message += "🔝 *Top 5 Leads by Value:*\n"
     # List top 5 leads
-    for i, item in enumerate(data.items[:5]):
-        message += f"{i+1}. *{item.name}* ({item.status}) - {item.phone}\n"
+    for i, item in enumerate(sorted_items[:5]):
+        message += f"{i+1}. *{item.name}* (₹{item.leadValue:,.2f}) - {item.status}\n"
     
     if lead_count > 5:
         message += f"\n...and {lead_count - 5} more."
@@ -97,7 +104,7 @@ async def create_lead(
     return ToolResult(
         type="create_lead",
         data=result,
-        text=f"Lead created successfully. ID: {result.lead_id}, Customer: {result.custName}, Phone: {result.phone}, Enquiry For: {result.enqFor}, Value: {result.value}, Status: {result.status}",
+        text=f"Lead created successfully. ID: {result.lead_id}, Customer: {result.custName}, Phone: {result.phone}, Enquiry For: {result.enqFor}, Value: {result.leadValue}, Status: {result.status}",
         whatsAppText=whatsAppText
     )
 
@@ -109,14 +116,15 @@ async def list_leads(business_id: int, token: str = None) -> ToolResult:
     data = await service.list_leads(int(business_id))
     
     # Generate text response
-    summary = f"{data.total} leads found for business {business_id}."
+    total_value = sum(item.leadValue for item in data.items)
+    summary = f"👥 {data.total} leads found for business {business_id}. 💰 Total Potential Value: ₹{total_value:,.2f}"
     
     # Generate Markdown table
     if data.items:
         table = "| Lead ID | Name | Status | Created At | Phone | Email | Source | Value |\n"
         table += "|---|---|---|---|---|---|---|---|\n"
         for item in data.items:
-            table += f"| {item.lead_id} | {item.name} | {item.status} | {item.created_at} | {item.phone} | {item.email} | {item.source} | {item.value} |\n"
+            table += f"| {item.lead_id} | {item.name} | {item.status} | {item.created_at} | {item.phone} | {item.email} | {item.source} | {item.leadValue} |\n"
         text = f"{summary}\n\n{table}"
     else:
         text = summary

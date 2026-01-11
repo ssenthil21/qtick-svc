@@ -45,6 +45,7 @@ class LeadCreateResponse(BaseModel):
     phone: Optional[str] = None
     enqFor: Optional[str] = None
     value: float = 0.0
+    leadValue: float = 0.0
 
 class LeadSummary(BaseModel):
     lead_id: str
@@ -55,6 +56,7 @@ class LeadSummary(BaseModel):
     email: Optional[str] = "N/A"
     source: Optional[str] = "N/A"
     value: float = 0.0
+    leadValue: float = 0.0
 
 class LeadListResponse(BaseModel):
     total: int
@@ -83,6 +85,7 @@ class BusinessSummary(BaseModel):
     business_id: str
     total_leads: int
     total_appointments: int
+    bills_count: int
     total_revenue: float
     recent_activities: List[str]
 

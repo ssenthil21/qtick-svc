@@ -45,3 +45,37 @@ def parse_date_flexible(date_str: str) -> str:
     # Ensure it's in UTC/canonical format for Java
     # Format: 2025-12-20T03:41:00.000+0000
     return dt.strftime("%Y-%m-%dT%H:%M:%S.000+0000")
+
+def get_date_range(period: str):
+    """
+    Calculates start and end dates for a given period string.
+    Returns: (from_date, to_date) as YYYY-MM-DD
+    """
+    from datetime import timedelta
+    now = datetime.now()
+    period = period.lower().strip()
+    
+    if period == "today":
+        start = now
+        end = now
+    elif period == "yesterday":
+        start = now - timedelta(days=1)
+        end = now - timedelta(days=1)
+    elif period == "this week":
+        start = now - timedelta(days=now.weekday())
+        end = now
+    elif period == "last week":
+        last_sunday = now - timedelta(days=now.weekday() + 1)
+        start = last_sunday - timedelta(days=6)
+        end = last_sunday
+    elif period == "this month":
+        start = now.replace(day=1)
+        end = now
+    elif period == "last month":
+        first_day_this_month = now.replace(day=1)
+        end = first_day_this_month - timedelta(days=1)
+        start = end.replace(day=1)
+    else:
+        return None, None
+
+    return start.strftime("%Y/%m/%d"), end.strftime("%Y/%m/%d")
