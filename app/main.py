@@ -53,6 +53,11 @@ async def startup_event():
     else:
         logging.info(f"  QTICK_JAVA_SERVICE_TOKEN: Not set")
 
+    # Debug JavaService path
+    from app.services.java_service import JavaService
+    import os
+    logging.info(f"  JAVA_SERVICE_FILE: {os.path.abspath(JavaService.__init__.__code__.co_filename)}")
+
 agent = Agent()
 website_agent = WebsiteAgent()
 
@@ -65,6 +70,7 @@ class ChatResponse(BaseModel):
     type: str
     response_text: str
     response_value: Any
+    whatsAppText: Optional[str] = ""
 
 class WebsiteChatRequest(BaseModel):
     message: str
@@ -79,8 +85,11 @@ class WebsiteChatResponse(BaseModel):
 @app.post("/agent/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest, authorization: Optional[str] = Header(None)):
     token = None
-    if authorization and authorization.startswith("Bearer "):
-        token = authorization.split(" ")[1]
+    if authorization:
+        auth_parts = authorization.split(" ")
+        if len(auth_parts) > 1 and auth_parts[0].lower() == "bearer":
+            token = auth_parts[1]
+
 
     try:
         agent_response = await agent.process_prompt(request.prompt, request.business_id, token)
@@ -88,7 +97,8 @@ async def chat(request: ChatRequest, authorization: Optional[str] = Header(None)
             prompt=request.prompt,
             type=agent_response.get("type", "Chat"),
             response_text=agent_response.get("response_text", ""),
-            response_value=agent_response.get("response_value")
+            response_value=agent_response.get("response_value"),
+            whatsAppText=agent_response.get("whatsAppText", "")
         )
     except Exception as e:
         logging.error(f"Error processing request: {e}", exc_info=True)

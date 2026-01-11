@@ -1,21 +1,34 @@
 import httpx
+import logging
 from app.models import Lead, Appointment, Invoice, BusinessSummary, LeadCreateRequest, LeadCreateResponse, LeadSummary, LeadListResponse, Service, BookingRequest, BookingResponse
 from typing import List, Optional, Dict, Any
 from app.services.base import BaseService
 from app.config import settings
 
+logger = logging.getLogger(__name__)
+
 class JavaService(BaseService):
     def __init__(self, token: str = None):
+        # Initialize base_url from settings
         self.base_url = settings.JAVA_API_BASE_URL
+        
+        # Initialize headers dictionary
         headers = {
             "Accept": "application/json",
             "Content-Type": "application/json",
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
-        if token:
-            headers["Authorization"] = f"bearer {token}"
-        elif settings.QTICK_JAVA_SERVICE_TOKEN:
-            headers["Authorization"] = f"bearer {settings.QTICK_JAVA_SERVICE_TOKEN}"
+        
+        logging.info(f">>>> JAVA SERVICE INIT <<<<")
+        logging.info(f"!!!! Config Token from .env: {settings.QTICK_JAVA_SERVICE_TOKEN[:10] if settings.QTICK_JAVA_SERVICE_TOKEN else 'None'}...")
+        logging.info(f"!!!! Passed Token from Header: {token[:10] if token else 'None'}...")
+        
+        # Prioritize passed token over config token
+        auth_token = token or settings.QTICK_JAVA_SERVICE_TOKEN
+        if auth_token:
+            headers["Authorization"] = f"Bearer {auth_token}"
+        
+        logging.info(f"!!!! Final Auth Header Used: {headers.get('Authorization')[:20] if headers.get('Authorization') else 'None'}...")
         
         # Ensure base_url ends with a slash for proper relative URL joining
         if self.base_url and not self.base_url.endswith('/'):
@@ -259,7 +272,7 @@ class JavaService(BaseService):
             business_id=str(business_id),
             total_leads=data.get("leadsCount", 0),
             total_appointments=data.get("appointmentsCount", 0),
-            total_revenue=float(data.get("totalRevenue", 0.0)),
+            total_revenue=float(data.get("totalRevenue") or data.get("revenue") or 0.0),
             recent_activities=data.get("recentActivities", [])
         )
 

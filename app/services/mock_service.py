@@ -23,7 +23,11 @@ class MockService(BaseService):
             lead_id=lead.id,
             status="new",
             created_at=lead.created_at.isoformat(),
-            next_action="Followup"
+            next_action="Followup",
+            custName=request.name,
+            phone=request.phone,
+            enqFor=request.enquiry_for,
+            value=0.0
         )
 
     async def list_leads(self, business_id: int) -> LeadListResponse:
@@ -75,7 +79,7 @@ class MockService(BaseService):
                 return inv
         return None
 
-    async def get_summary_for_business(self, business_id: str) -> BusinessSummary:
+    async def get_summary_for_business(self, business_id: str, from_date: str = None, to_date: str = None) -> BusinessSummary:
         # Mock logic to calculate summary
         total_leads = len(self.leads) # In real app, filter by business_id
         total_appointments = len(self.appointments)

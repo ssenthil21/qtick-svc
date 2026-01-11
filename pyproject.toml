@@ -11,7 +11,9 @@ dependencies = [
     "pydantic",
     "openai",
     "google-generativeai",
-    "python-dotenv"
+    "python-dotenv",
+    "dateparser",
+    "gunicorn"
 ]
 
 [tool.setuptools]

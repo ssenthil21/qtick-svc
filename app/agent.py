@@ -299,6 +299,7 @@ class Agent:
         # Prepare response value for API
         response_value = None
         response_type = last_tool_name
+        whatsapp_text = ""
         
         if last_tool_result:
             if isinstance(last_tool_result, ToolResult):
@@ -309,6 +310,8 @@ class Agent:
                 response_text = last_tool_result.text
                 # Use the type from the tool result
                 response_type = last_tool_result.type
+                # Capture WhatsApp text
+                whatsapp_text = last_tool_result.whatsAppText
             elif isinstance(last_tool_result, list):
                 response_value = [item.dict() for item in last_tool_result]
             elif hasattr(last_tool_result, "dict"):
@@ -319,7 +322,8 @@ class Agent:
         return {
             "type": response_type,
             "response_text": response_text,
-            "response_value": response_value
+            "response_value": response_value,
+            "whatsAppText": whatsapp_text
         }
 
     async def _process_gemini(self, prompt: str, token: str = None) -> Dict[str, Any]:
@@ -435,6 +439,7 @@ class Agent:
         response_text = ""
         response_value = None
         response_type = last_tool_name
+        whatsapp_text = ""
 
         # Concatenate text from all parts if available
         if response.candidates and response.candidates[0].content.parts:
@@ -453,6 +458,8 @@ class Agent:
                     response_text = last_tool_result.text
                 
                 response_type = last_tool_result.type
+                # Capture WhatsApp text
+                whatsapp_text = last_tool_result.whatsAppText
             elif isinstance(last_tool_result, list):
                 response_value = [item.dict() if hasattr(item, "dict") else item for item in last_tool_result]
             elif hasattr(last_tool_result, "dict"):
@@ -467,5 +474,6 @@ class Agent:
         return {
             "type": response_type,
             "response_text": response_text,
-            "response_value": response_value
+            "response_value": response_value,
+            "whatsAppText": whatsapp_text
         }

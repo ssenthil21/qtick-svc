@@ -5,6 +5,7 @@ class ToolResult(BaseModel):
     type: str
     data: Any
     text: str
+    whatsAppText: str = ""
 from datetime import datetime
 
 class Lead(BaseModel):

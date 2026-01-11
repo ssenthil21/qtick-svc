@@ -13,6 +13,7 @@ print(f"File exists: {env_path.exists()}")
 # In dev, let .env override anything else
 loaded = load_dotenv(dotenv_path=env_path, override=True)
 print(f"load_dotenv result: {loaded}")
+print(f"!!! CONFIG MARKER: {env_path} !!!")
 print(f"---------------------------")
 
 class Config:
