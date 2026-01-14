@@ -66,6 +66,11 @@ async def test_business_summary_tool_integration(mocker):
     assert mock_svc.captured_to == now_str
     assert "Business Summary for ID 123 from" in result.text
     assert "₹5,000.00" in result.text
+    
+    # Check for human readable date format in WhatsApp text
+    # today -> Nov 25, 2025 (e.g.)
+    current_human_date = datetime.now().strftime("%b %d, %Y")
+    assert f"_{current_human_date} - {current_human_date} Business Summary_" in result.whatsAppText
 
 if __name__ == "__main__":
     import asyncio

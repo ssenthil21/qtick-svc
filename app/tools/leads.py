@@ -33,7 +33,7 @@ def format_whatsapp_lead_list(data: LeadListResponse, business_id: int) -> str:
     
     message = f"📋 *Lead List for Biz #{business_id}*\n"
     message += f"👥 Total Leads: {data.total}\n"
-    message += f"💰 Total Potential Value: ₹{total_value:,.2f}\n\n"
+    message += f"💰 Total Potential Value: ₹{total_value:,.2f}\n"
     
     message += "🔝 *Top 5 Leads by Value:*\n"
     # List top 5 leads

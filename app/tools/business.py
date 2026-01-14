@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from app.config import settings
 from app.services.mock_service import MockService
 from app.services.java_service import JavaService
@@ -11,16 +12,28 @@ def get_service(token: str = None):
     print(token)
     return JavaService(token)
 
-def format_whatsapp_summary(data: BusinessSummary) -> str:
+def format_whatsapp_summary(data: BusinessSummary, from_date: str, to_date: str) -> str:
     """Format business summary for WhatsApp with encoding."""
     # Assuming business name might be available in a real scenario, 
     # but for now using a placeholder or just "Business Summary"
     # The sample had "QTick – Chillbreeze"
     business_name = "QTick" 
     
+    # Format dates to human readable string (e.g. Jan 01, 2026)
+    try:
+        start_dt = datetime.strptime(from_date, "%Y/%m/%d")
+        end_dt = datetime.strptime(to_date, "%Y/%m/%d")
+        # Format: Nov 01, 2025
+        start_str = start_dt.strftime("%b %d, %Y")
+        end_str = end_dt.strftime("%b %d, %Y")
+    except Exception:
+        # Fallback if parsing fails
+        start_str = from_date
+        end_str = to_date
+
     message = (
         f"📊 *{business_name} Summary*\n"
-        f"_Weekly Business Summary_\n\n"
+        f"_{start_str} - {end_str} Business Summary_\n\n"
         f"✅ *Leads Generated:* {data.total_leads}\n"
         f"💰 *Revenue:* ₹{data.total_revenue:,.2f}\n"
         f"📅 *Appointments Booked:* {data.total_appointments}\n"
@@ -64,7 +77,7 @@ async def get_summary_for_business(business_id: str, from_date: str = None, to_d
         f"💰 Total Revenue: ₹{data.total_revenue:,.2f}"
     )
     
-    whatsAppText = format_whatsapp_summary(data)
+    whatsAppText = format_whatsapp_summary(data, from_date, to_date)
     
     return ToolResult(
         type="get_summary_for_business", 

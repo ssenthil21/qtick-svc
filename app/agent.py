@@ -3,7 +3,7 @@ import json
 from typing import Dict, Any, List
 from app.config import settings
 from app.models import ToolResult
-from app.tools import leads, appointments, invoices, business, catalog
+from app.tools import leads, appointments, invoices, business, catalog, help
 
 # Tool definitions for the LLM
 TOOLS_DEFINITIONS = [
@@ -161,6 +161,14 @@ TOOLS_DEFINITIONS = [
                 "required": ["business_id", "text"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_help_guide",
+            "description": "Get a guide of the assistant's capabilities for greetings, 'hi', 'hello', or help requests",
+            "parameters": {"type": "object", "properties": {}}
+        }
     }
 ]
 
@@ -211,6 +219,8 @@ class Agent:
                 result = await business.get_summary_for_business(**arguments)
             elif tool_name == "search_services":
                 result = await catalog.search_services(**arguments)
+            elif tool_name == "get_help_guide":
+                result = await help.get_help_guide()
             else:
                 logger.error(f"Tool '{tool_name}' not found")
                 return f"Error: Tool {tool_name} not found"
@@ -228,6 +238,7 @@ class Agent:
         
         system_prompt = (
             "You are a helpful assistant for QTick. "
+            "For greetings (e.g., 'hi', 'hello', 'hey', 'hi there') or general help requests ('guide me', 'what can you do?', 'help'), YOU MUST call the `get_help_guide` tool. DO NOT reply with text directly for greetings. The `get_help_guide` tool is mandatory for any initial greeting or general inquiry about your capabilities. "
             "When listing items (leads, appointments, invoices, services), return ONLY a clean Markdown table. "
             "Use Title Case for headers. "
             "For appointment booking, if a service name is provided (not an ID), YOU MUST first use `search_services` to find the Service ID. "
@@ -307,12 +318,15 @@ class Agent:
                 response_value = last_tool_result.data
                 if hasattr(response_value, "dict"):
                     response_value = response_value.dict()
-                # Use the text from the tool result as the main response text
-                response_text = last_tool_result.text
+                # Prefer the text from the tool result if it's provided
+                if last_tool_result.text:
+                    response_text = last_tool_result.text
+                
                 # Use the type from the tool result
                 response_type = last_tool_result.type
                 # Capture WhatsApp text
-                whatsapp_text = last_tool_result.whatsAppText
+                if last_tool_result.whatsAppText:
+                    whatsapp_text = last_tool_result.whatsAppText
             elif isinstance(last_tool_result, list):
                 response_value = [item.dict() for item in last_tool_result]
             elif hasattr(last_tool_result, "dict"):
@@ -324,7 +338,7 @@ class Agent:
             "type": response_type,
             "response_text": response_text,
             "response_value": response_value,
-            "whatsAppText": whatsapp_text
+            "whatsAppText": whatsapp_text if whatsapp_text else response_text
         }
 
     async def _process_gemini(self, prompt: str, token: str = None) -> Dict[str, Any]:
@@ -347,6 +361,7 @@ class Agent:
         
         system_instruction = (
             "You are a helpful assistant for QTick. "
+            "For greetings (e.g., 'hi', 'hello', 'hey', 'hi there') or general help requests ('guide me', 'what can you do?', 'help'), YOU MUST call the `get_help_guide` tool. DO NOT reply with text directly for greetings. The `get_help_guide` tool is mandatory for any initial greeting or general inquiry about your capabilities. "
             "When listing items (leads, appointments, invoices, services), return ONLY a clean Markdown table. "
             "Use Title Case for headers. "
             "For appointment booking, if a service name is provided (not an ID), YOU MUST first use `search_services` to find the Service ID. "
@@ -454,13 +469,14 @@ class Agent:
                 if hasattr(response_value, "dict"):
                     response_value = response_value.dict()
                 
-                # If Gemini didn't give any final text, use the tool result text
-                if not response_text:
+                # Prefer the tool result text
+                if last_tool_result.text:
                     response_text = last_tool_result.text
                 
                 response_type = last_tool_result.type
                 # Capture WhatsApp text
-                whatsapp_text = last_tool_result.whatsAppText
+                if last_tool_result.whatsAppText:
+                    whatsapp_text = last_tool_result.whatsAppText
             elif isinstance(last_tool_result, list):
                 response_value = [item.dict() if hasattr(item, "dict") else item for item in last_tool_result]
             elif hasattr(last_tool_result, "dict"):
@@ -476,5 +492,5 @@ class Agent:
             "type": response_type,
             "response_text": response_text,
             "response_value": response_value,
-            "whatsAppText": whatsapp_text
+            "whatsAppText": whatsapp_text if whatsapp_text else response_text
         }
