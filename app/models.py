@@ -71,6 +71,14 @@ class Appointment(BaseModel):
     description: Optional[str] = None
     status: str = "scheduled"
 
+class AppointmentSummary(BaseModel):
+    booking_id: str
+    customer_name: str
+    service_name: str
+    start_time: str
+    status: str
+    phone: str
+
 class Invoice(BaseModel):
     id: Optional[str] = None
     business_id: str

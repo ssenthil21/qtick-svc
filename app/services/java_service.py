@@ -1,6 +1,6 @@
 import httpx
 import logging
-from app.models import Lead, Appointment, Invoice, BusinessSummary, LeadCreateRequest, LeadCreateResponse, LeadSummary, LeadListResponse, Service, BookingRequest, BookingResponse
+from app.models import Lead, Appointment, AppointmentSummary, Invoice, BusinessSummary, LeadCreateRequest, LeadCreateResponse, LeadSummary, LeadListResponse, Service, BookingRequest, BookingResponse
 from typing import List, Optional, Dict, Any
 from app.services.base import BaseService
 from app.config import settings
@@ -233,10 +233,38 @@ class JavaService(BaseService):
         response.raise_for_status()
         raise Exception(f"Unknown error: {response.status_code}")
 
-    async def list_appointments(self) -> List[Appointment]:
-        response = await self.client.get("appointments")
-        response.raise_for_status()
-        return [Appointment(**item) for item in response.json()]
+    async def list_appointments(self, business_id: int, start_date: str, end_date: str, status: str = "QU,BO,PE") -> List[AppointmentSummary]:
+        params = {
+            "date": start_date,
+            "startDate": start_date,
+            "endDate": end_date,
+            "status": status,
+            "sessionId": ""
+        }
+        
+        # Use _get for proper logging and error handling
+        response_data = await self._get(f"api/biz/{business_id}/bookings/", params=params)
+        
+        appointments = []
+        for item in response_data:
+            # Extract service names
+            services = item.get("services", [])
+            service_names = ", ".join([s.get("serviceName", "") for s in services])
+            
+            # Extract customer info
+            customer = item.get("customerInfo", {})
+            
+            summary = AppointmentSummary(
+                booking_id=str(item.get("bookingId")),
+                customer_name=customer.get("name") or "Unknown",
+                service_name=service_names or "No Service",
+                start_time=item.get("bkStartTime") or item.get("startTime"),
+                status=item.get("status"),
+                phone=customer.get("phone") or "N/A"
+            )
+            appointments.append(summary)
+            
+        return appointments
 
     async def get_appointment(self, appointment_id: str) -> Optional[Appointment]:
         response = await self.client.get(f"appointments/{appointment_id}")

@@ -73,7 +73,16 @@ TOOLS_DEFINITIONS = [
         "function": {
             "name": "list_appointments",
             "description": "List all appointments",
-            "parameters": {"type": "object", "properties": {}}
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "business_id": {"type": "integer"},
+                    "period": {"type": "string", "enum": ["today", "yesterday", "this week", "last week", "this month", "last month"], "description": "Quick period selection"},
+                    "from_date": {"type": "string", "description": "Start date in YYYY/MM/DD format (optional if period is used)"},
+                    "to_date": {"type": "string", "description": "End date in YYYY/MM/DD format (optional if period is used)"}
+                },
+                "required": ["business_id"]
+            }
         }
     },
     {
@@ -206,7 +215,7 @@ class Agent:
             elif tool_name == "create_appointment":
                 result = await appointments.create_appointment(**arguments)
             elif tool_name == "list_appointments":
-                result = await appointments.list_appointments()
+                result = await appointments.list_appointments(**arguments)
             elif tool_name == "get_appointment":
                 result = await appointments.get_appointment(**arguments)
             elif tool_name == "create_invoice":
