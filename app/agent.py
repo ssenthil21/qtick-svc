@@ -142,11 +142,11 @@ TOOLS_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "get_summary_for_business",
-            "description": "Get business summary",
+            "description": "Get business summary (leads, revenue, appointments). Use the current business ID from context if the user doesn't specify one.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "business_id": {"type": "string"},
+                    "business_id": {"type": "string", "description": "The business ID to summarize. Defaults to the current active business context."},
                     "period": {"type": "string", "enum": ["today", "yesterday", "this week", "last week", "this month", "last month"], "description": "Quick period selection"},
                     "from_date": {"type": "string", "description": "Start date in YYYY/MM/DD format (optional if period is used)"},
                     "to_date": {"type": "string", "description": "End date in YYYY/MM/DD format (optional if period is used)"}
@@ -183,11 +183,11 @@ TOOLS_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "get_franchise_summary",
-            "description": "Get franchise summary request",
+            "description": "Get a consolidated summary report for multiple branches/businesses mentioned by the user.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "business_ids": {"type": "string", "description": "Comma separated list of business IDs"},
+                    "business_ids": {"type": "string", "description": "Comma separated list of business IDs mentioned by the user (e.g., '96,97')"},
                     "period": {"type": "string", "enum": ["today", "yesterday", "this week", "last week", "this month", "last month"], "description": "Quick period selection"},
                     "from_date": {"type": "string", "description": "Start date in YYYY/MM/DD format (optional if period is used)"},
                     "to_date": {"type": "string", "description": "End date in YYYY/MM/DD format (optional if period is used)"}
@@ -221,13 +221,11 @@ class Agent:
         self.provider = settings.LLM_PROVIDER
         
     async def process_prompt(self, prompt: str, business_id: int, token: str = None, client_id: str = None) -> Dict[str, Any]:
-        # Append business context to prompt
-        updated_prompt = f"{prompt} for business Id {business_id}"
-        logger.info(f"Processing prompt: {updated_prompt}")
+        logger.info(f"Processing prompt: {prompt}")
         if self.provider == "openai":
-            return await self._process_openai(updated_prompt, token, client_id)
+            return await self._process_openai(prompt, business_id, token, client_id)
         elif self.provider == "gemini":
-            return await self._process_gemini(updated_prompt, token, client_id)
+            return await self._process_gemini(prompt, business_id, token, client_id)
         else:
             return {"type": "Error", "response_text": "Unsupported LLM provider", "response_value": None}
 
@@ -278,12 +276,14 @@ class Agent:
             logger.error(f"Error executing tool '{tool_name}': {str(e)}")
             return f"Error executing tool {tool_name}: {str(e)}"
 
-    async def _process_openai(self, prompt: str, token: str = None, client_id: str = None) -> Dict[str, Any]:
+    async def _process_openai(self, prompt: str, business_id: int, token: str = None, client_id: str = None) -> Dict[str, Any]:
         from openai import AsyncOpenAI
         client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
         
         system_prompt = (
             "You are a helpful assistant for QTick. "
+            f"CURRENT BUSINESS CONTEXT: ID {business_id}. "
+            "Use this ID as the default for any tool calls (leads, appointments, summaries) unless the user explicitly mentions different business IDs. "
             "For greetings (e.g., 'hi', 'hello', 'hey', 'hi there') or general help requests ('guide me', 'what can you do?', 'help'), YOU MUST call the `get_help_guide` tool. DO NOT reply with text directly for greetings. The `get_help_guide` tool is mandatory for any initial greeting or general inquiry about your capabilities. "
             "When listing items (leads, appointments, invoices, services), return ONLY a clean Markdown table. "
             "Use Title Case for headers. "
@@ -387,7 +387,7 @@ class Agent:
             "whatsAppText": whatsapp_text if whatsapp_text else response_text
         }
 
-    async def _process_gemini(self, prompt: str, token: str = None, client_id: str = None) -> Dict[str, Any]:
+    async def _process_gemini(self, prompt: str, business_id: int, token: str = None, client_id: str = None) -> Dict[str, Any]:
         import google.generativeai as genai
         from google.generativeai.types import FunctionDeclaration, Tool
         from google.ai.generativelanguage import Part, FunctionResponse
@@ -407,6 +407,8 @@ class Agent:
         
         system_instruction = (
             "You are a helpful assistant for QTick. "
+            f"CURRENT BUSINESS CONTEXT: ID {business_id}. "
+            "Use this ID as the default for any tool calls (leads, appointments, summaries) unless the user explicitly mentions different business IDs. "
             "For greetings (e.g., 'hi', 'hello', 'hey', 'hi there') or general help requests ('guide me', 'what can you do?', 'help'), YOU MUST call the `get_help_guide` tool. DO NOT reply with text directly for greetings. The `get_help_guide` tool is mandatory for any initial greeting or general inquiry about your capabilities. "
             "When listing items (leads, appointments, invoices, services), return ONLY a clean Markdown table. "
             "Use Title Case for headers. "

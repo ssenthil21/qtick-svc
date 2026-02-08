@@ -28,15 +28,16 @@ class JavaService(BaseService):
         logging.info(f"!!!! Config Token from .env: {settings.QTICK_JAVA_SERVICE_TOKEN[:10] if settings.QTICK_JAVA_SERVICE_TOKEN else 'None'}...")
         logging.info(f"!!!! Passed Token from Header: {token[:10] if token else 'None'}...")
         
-        # Prioritize passed token over config token
-        auth_token = settings.QTICK_BIZ_PROFILE_SECRET
-        
-        # If no bearer token, try the biz profile secret as a fallback for system-level calls
-        if not auth_token:
+        # Determine auth token based on chat type
+        if client_id:
+            # Phone chats use the biz profile secret as per requirements
             auth_token = settings.QTICK_BIZ_PROFILE_SECRET
+        else:
+            # Website chats prioritize passed token, then config token, then secret fallback
+            auth_token = token or settings.QTICK_JAVA_SERVICE_TOKEN or settings.QTICK_BIZ_PROFILE_SECRET
             
         if auth_token:
-            # If it's a "user:pass" style secret, don't use 'Bearer '
+            # If it's a "user:pass" style secret or bizprofile secret, don't use 'Bearer '
             if ":" in auth_token or auth_token.startswith("bizprofile"):
                 headers["Authorization"] = auth_token
             else:
@@ -106,7 +107,21 @@ class JavaService(BaseService):
             import json
             logging.info(f"Sending create_lead payload:\n{json.dumps(payload, indent=2, default=str)}")
 
-            data = await self._post("api/biz/sales-enq", payload)
+            # Use secret explicitly for lead creation
+            headers = self.client.headers.copy()
+            if settings.QTICK_BIZ_PROFILE_SECRET:
+                headers["Authorization"] = settings.QTICK_BIZ_PROFILE_SECRET
+
+            # data = await self._post("api/biz/sales-enq", payload)
+            # Use raw post to override headers for this specific call
+            response = await self.client.post("api/biz/sales-enq", json=payload, headers=headers)
+            
+            logging.info(f"Response Status: {response.status_code}")
+            logging.info(f"Response Content: '{response.text}'")
+            
+            response.raise_for_status()
+            data = response.json()
+            
             logging.info(f"Received create_lead response:\n{json.dumps(data, indent=2, default=str)}")
             
             # The API returns several fields, we map them back
@@ -169,7 +184,7 @@ class JavaService(BaseService):
             "toDate": "",
         }
         data = await self._get(
-            f"api/biz/{business_id}/sales-enq/list", params=params
+            f"api/biz/{int(business_id)}/sales-enq/list", params=params
         )
         
         leads: List[LeadSummary] = []
@@ -226,7 +241,8 @@ class JavaService(BaseService):
 
     async def create_appointment(self, request: BookingRequest) -> BookingResponse:
         headers = self.client.headers.copy()
-        headers["Authorization"] = "bizprofile-web:D9yGl4wpT1"
+        if settings.QTICK_BIZ_PROFILE_SECRET:
+            headers["Authorization"] = settings.QTICK_BIZ_PROFILE_SECRET
         headers["Accept"] = "application/json"
         
         payload = request.dict()
@@ -257,7 +273,7 @@ class JavaService(BaseService):
         }
         
         # Use _get for proper logging and error handling
-        response_data = await self._get(f"api/biz/{business_id}/bookings/", params=params)
+        response_data = await self._get(f"api/biz/{int(business_id)}/bookings/", params=params)
         
         appointments = []
         for item in response_data:
@@ -310,7 +326,7 @@ class JavaService(BaseService):
             "toDate": to_date
         }
         # Fixed to use self._get which handles relative URLs correctly
-        data = await self._get(f"api/biz/{business_id}/summary", params=params)
+        data = await self._get(f"api/biz/{int(business_id)}/summary", params=params)
         
         return BusinessSummary(
             business_id=str(business_id),
@@ -327,13 +343,26 @@ class JavaService(BaseService):
             "text": text,
             "groupId": int(group_id)
         }
-        # Fixed to use self._get which handles relative URLs correctly
-        response = await self._get("web/biz/services", params=params)
-        return [Service(**item) for item in response]
+        
+        # This specific endpoint (web/biz/services) typically requires a Bearer token
+        # even during phone chats where other endpoints use the secret key.
+        headers = {}
+        if settings.QTICK_JAVA_SERVICE_TOKEN:
+            headers["Authorization"] = f"Bearer {settings.QTICK_JAVA_SERVICE_TOKEN}"
+            
+        # Using self.client.get directly with specific headers to avoid using the 
+        # default secret key set in __init__ for phone chats.
+        response = await self.client.get("web/biz/services", params=params, headers=headers)
+        
+        if response.status_code == 401:
+            logging.error(f"search_services failed with 401. Tried Bearer: {mask_key(headers.get('Authorization'))}")
+            
+        response.raise_for_status()
+        return [Service(**item) for item in response.json()]
 
     async def list_offers(self, business_id: str) -> List[Offer]:
         # GET /api/biz/{business_id}/offers
-        response_data = await self._get(f"api/biz/{business_id}/offers")
+        response_data = await self._get(f"api/biz/{int(business_id)}/offers")
         
         offers = []
         for item in response_data:

@@ -52,9 +52,10 @@ async def main():
         {"name": "Create Lead", "prompt": "Create a new lead named 'Enriched Test User' with email 'enriched@test.com' and phone '98765432'."},
         {"name": "Create Lead with Service", "prompt": "Create a new lead for 'user2' with phone '91944367165454' interested in 'Gents Cut'."},
         {"name": "List Leads", "prompt": "List all leads."},
-        {"name": "Create Booking - Single Service", "prompt": "Book an appointment for phone '911234567890', for service Simple Facial on 2025-12-22T09:00:00.000+0000."},
-        {"name": "Create Booking - Multi Service", "prompt": "Book an appointment for phone '911234567890', service Facial on 2025-12-23T14:30:00.000+0000."},
-        {"name": "Get Business Summary", "prompt": "Get business summary from 2025/11/01 to 2025/11/30."},
+        {"name": "List Appointments", "prompt": "List all appointments for this month."},
+        {"name": "Create Booking - Single Service", "prompt": "Book an appointment for phone '911234567890', for service Hair Cut on 2026-02-10T09:00:00.000+0000."},
+        {"name": "Create Booking - Multi Service", "prompt": "Book an appointment for phone '911234567890', service Hair Cut and Head Massage on 2026-02-10T14:30:00.000+0000."},
+        {"name": "Get Business Summary", "prompt": "Get business summary from 2026/01/01 to 2026/01/31."},
         {"name": "Search Services", "prompt": "Search for 'facial' services."},
         {"name": "Franchise Summary", "prompt": "Get franchise summary for branches 96 and 97 for today."},
         {"name": "List Offers", "prompt": "Show me the offers."}
