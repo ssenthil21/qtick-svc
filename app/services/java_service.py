@@ -3,12 +3,12 @@ import logging
 from app.models import Lead, Appointment, AppointmentSummary, Invoice, BusinessSummary, LeadCreateRequest, LeadCreateResponse, LeadSummary, LeadListResponse, Service, BookingRequest, BookingResponse, Offer, OfferListResponse
 from typing import List, Optional, Dict, Any
 from app.services.base import BaseService
-from app.config import settings
+from app.config import settings, mask_key
 
 logger = logging.getLogger(__name__)
 
 class JavaService(BaseService):
-    def __init__(self, token: str = None):
+    def __init__(self, token: str = None, client_id: str = None):
         # Initialize base_url from settings
         self.base_url = settings.JAVA_API_BASE_URL
         
@@ -19,16 +19,30 @@ class JavaService(BaseService):
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
         
+        if client_id:
+            headers["X-ClientId"] = client_id
+            
         logging.info(f">>>> JAVA SERVICE INIT <<<<")
+        if client_id:
+            logging.info(f"!!!! X-ClientId: {client_id}")
         logging.info(f"!!!! Config Token from .env: {settings.QTICK_JAVA_SERVICE_TOKEN[:10] if settings.QTICK_JAVA_SERVICE_TOKEN else 'None'}...")
         logging.info(f"!!!! Passed Token from Header: {token[:10] if token else 'None'}...")
         
         # Prioritize passed token over config token
-        auth_token = token or settings.QTICK_JAVA_SERVICE_TOKEN
-        if auth_token:
-            headers["Authorization"] = f"Bearer {auth_token}"
+        auth_token = settings.QTICK_BIZ_PROFILE_SECRET
         
-        logging.info(f"!!!! Final Auth Header Used: {headers.get('Authorization')[:20] if headers.get('Authorization') else 'None'}...")
+        # If no bearer token, try the biz profile secret as a fallback for system-level calls
+        if not auth_token:
+            auth_token = settings.QTICK_BIZ_PROFILE_SECRET
+            
+        if auth_token:
+            # If it's a "user:pass" style secret, don't use 'Bearer '
+            if ":" in auth_token or auth_token.startswith("bizprofile"):
+                headers["Authorization"] = auth_token
+            else:
+                headers["Authorization"] = f"Bearer {auth_token}"
+        
+        logging.info(f"!!!! Final Auth Header Used: {mask_key(headers.get('Authorization')) if headers.get('Authorization') else 'None'}...")
         
         # Ensure base_url ends with a slash for proper relative URL joining
         if self.base_url and not self.base_url.endswith('/'):

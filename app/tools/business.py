@@ -5,12 +5,11 @@ from app.services.mock_service import MockService
 from app.services.java_service import JavaService
 from app.models import BusinessSummary, ToolResult
 
-def get_service(token: str = None):
+def get_service(token: str = None, client_id: str = None):
     if settings.USE_MOCK_DATA:
         return MockService(token)
     
-    print(token)
-    return JavaService(token)
+    return JavaService(token, client_id)
 
 def format_whatsapp_summary(data: BusinessSummary, from_date: str, to_date: str) -> str:
     """Format business summary for WhatsApp with encoding."""
@@ -98,18 +97,11 @@ def format_whatsapp_franchise_summary(consolidated: BusinessSummary, details: li
     escaped_message = json.dumps(message, ensure_ascii=True)[1:-1]
     return escaped_message
 
-async def get_summary_for_business(business_id: str, from_date: str = None, to_date: str = None, period: str = None, token: str = None) -> ToolResult:
+async def get_summary_for_business(business_id: str, from_date: str = None, to_date: str = None, period: str = None, token: str = None, client_id: str = None) -> ToolResult:
     """Get a summary for a business."""
     from app.utils.date_utils import get_date_range
     
-    # If period is provided, or if from_date looks like a period name
-    period_to_check = period or from_date
-    if period_to_check and period_to_check.lower() in ["today", "yesterday", "this week", "last week", "this month", "last month"]:
-        resolved_from, resolved_to = get_date_range(period_to_check)
-        if resolved_from and resolved_to:
-            from_date = resolved_from
-            to_date = resolved_to
-
+    # ... (other code)
     if not from_date or not to_date:
         # Fallback to today if nothing is provided
         from_date, to_date = get_date_range("today")
@@ -120,7 +112,7 @@ async def get_summary_for_business(business_id: str, from_date: str = None, to_d
     if to_date:
         to_date = to_date.replace("-", "/")
 
-    service = get_service(token)
+    service = get_service(token, client_id)
     data = await service.get_summary_for_business(business_id, from_date, to_date)
     text = (
         f"Business Summary for ID {business_id} from {from_date} to {to_date}:\n"
@@ -139,7 +131,7 @@ async def get_summary_for_business(business_id: str, from_date: str = None, to_d
         whatsAppText=whatsAppText
     )
 
-async def get_franchise_summary(business_ids: str, from_date: str = None, to_date: str = None, period: str = None, token: str = None) -> ToolResult:
+async def get_franchise_summary(business_ids: str, from_date: str = None, to_date: str = None, period: str = None, token: str = None, client_id: str = None) -> ToolResult:
     """
     Get a consolidated summary for multiple businesses (franchise report).
     
@@ -169,7 +161,7 @@ async def get_franchise_summary(business_ids: str, from_date: str = None, to_dat
     if to_date:
         to_date = to_date.replace("-", "/")
 
-    service = get_service(token)
+    service = get_service(token, client_id)
     
     ids = [bid.strip() for bid in business_ids.split(",") if bid.strip()]
     

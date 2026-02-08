@@ -7,15 +7,15 @@ from app.models import Appointment, ToolResult, BookingRequest, AppointmentSumma
 from app.utils.date_utils import parse_date_flexible, get_date_range
 import json
 
-def get_service(token: str = None):
+def get_service(token: str = None, client_id: str = None):
     if settings.USE_MOCK_DATA:
         return MockService(token)
-    return JavaService(token)
+    return JavaService(token, client_id)
 
-async def create_appointment(business_id: int, phone: str, service_ids: List[int], date_time: str, token: str = None) -> ToolResult:
+async def create_appointment(business_id: int, phone: str, service_ids: List[int], date_time: str, token: str = None, client_id: str = None) -> ToolResult:
     """Create a new appointment. Supports natural language dates."""
     date_time = parse_date_flexible(date_time)
-    service = get_service(token)
+    service = get_service(token, client_id)
     
     request = BookingRequest(
         bizId=int(business_id),
@@ -41,7 +41,7 @@ async def create_appointment(business_id: int, phone: str, service_ids: List[int
     
     return ToolResult(type="create_appointment", data=result, text=text, whatsAppText=escaped_wa)
 
-async def list_appointments(business_id: int, from_date: str = None, to_date: str = None, period: str = None, token: str = None) -> ToolResult:
+async def list_appointments(business_id: int, from_date: str = None, to_date: str = None, period: str = None, token: str = None, client_id: str = None) -> ToolResult:
     """List appointments with date filtering."""
     
     # Handle date logic
@@ -63,7 +63,7 @@ async def list_appointments(business_id: int, from_date: str = None, to_date: st
     if len(from_date.split(' ')) == 1: from_date += " 00:00:00"
     if len(to_date.split(' ')) == 1: to_date += " 23:59:59"
 
-    service = get_service(token)
+    service = get_service(token, client_id)
     data = await service.list_appointments(business_id, from_date, to_date)
     
     # Text Format
@@ -106,9 +106,9 @@ async def list_appointments(business_id: int, from_date: str = None, to_date: st
 
     return ToolResult(type="list_appointments", data=data, text=text, whatsAppText=escaped_wa)
 
-async def get_appointment(appointment_id: str, token: str = None) -> ToolResult:
+async def get_appointment(appointment_id: str, token: str = None, client_id: str = None) -> ToolResult:
     """Get details of a specific appointment."""
-    service = get_service(token)
+    service = get_service(token, client_id)
     data = await service.get_appointment(appointment_id)
     if data:
         text = f"Appointment details found for ID {appointment_id}."

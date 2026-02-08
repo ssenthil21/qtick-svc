@@ -144,7 +144,7 @@ async def phone_chat(request: PhoneChatRequest):
 
     try:
         # Agent processing (no user token passed, agent uses system token if needed)
-        agent_response = await agent.process_prompt(request.prompt, business_id, None)
+        agent_response = await agent.process_prompt(request.prompt, business_id, None, request.phone)
         return ChatResponse(
             prompt=request.prompt,
             type=agent_response.get("type", "Chat"),

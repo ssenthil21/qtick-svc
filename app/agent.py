@@ -220,22 +220,24 @@ class Agent:
     def __init__(self):
         self.provider = settings.LLM_PROVIDER
         
-    async def process_prompt(self, prompt: str, business_id: int, token: str = None) -> Dict[str, Any]:
+    async def process_prompt(self, prompt: str, business_id: int, token: str = None, client_id: str = None) -> Dict[str, Any]:
         # Append business context to prompt
         updated_prompt = f"{prompt} for business Id {business_id}"
         logger.info(f"Processing prompt: {updated_prompt}")
         if self.provider == "openai":
-            return await self._process_openai(updated_prompt, token)
+            return await self._process_openai(updated_prompt, token, client_id)
         elif self.provider == "gemini":
-            return await self._process_gemini(updated_prompt, token)
+            return await self._process_gemini(updated_prompt, token, client_id)
         else:
             return {"type": "Error", "response_text": "Unsupported LLM provider", "response_value": None}
 
-    async def _execute_tool(self, tool_name: str, arguments: Dict[str, Any], token: str = None, prompt: str = None) -> Any:
+    async def _execute_tool(self, tool_name: str, arguments: Dict[str, Any], token: str = None, prompt: str = None, client_id: str = None) -> Any:
         logger.info(f"Executing tool '{tool_name}' with args: {arguments}")
-        # Inject token into arguments if available
+        # Inject token and client_id into arguments if available
         if token:
             arguments["token"] = token
+        if client_id:
+            arguments["client_id"] = client_id
             
         try:
             if tool_name == "create_lead":
@@ -252,7 +254,7 @@ class Agent:
             elif tool_name == "create_invoice":
                 result = await invoices.create_invoice(**arguments)
             elif tool_name == "list_invoices":
-                result = await invoices.list_invoices()
+                result = await invoices.list_invoices(**arguments)
             elif tool_name == "get_invoice":
                 result = await invoices.get_invoice(**arguments)
             elif tool_name == "get_summary_for_business":
@@ -276,7 +278,7 @@ class Agent:
             logger.error(f"Error executing tool '{tool_name}': {str(e)}")
             return f"Error executing tool {tool_name}: {str(e)}"
 
-    async def _process_openai(self, prompt: str, token: str = None) -> Dict[str, Any]:
+    async def _process_openai(self, prompt: str, token: str = None, client_id: str = None) -> Dict[str, Any]:
         from openai import AsyncOpenAI
         client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
         
@@ -316,7 +318,7 @@ class Agent:
                 function_args = json.loads(tool_call.function.arguments)
                 
                 logger.info(f"Agent calling tool: {function_name}")
-                raw_result = await self._execute_tool(function_name, function_args, token, prompt)
+                raw_result = await self._execute_tool(function_name, function_args, token, prompt, client_id)
                 
                 last_tool_name = function_name
                 last_tool_result = raw_result
@@ -385,7 +387,7 @@ class Agent:
             "whatsAppText": whatsapp_text if whatsapp_text else response_text
         }
 
-    async def _process_gemini(self, prompt: str, token: str = None) -> Dict[str, Any]:
+    async def _process_gemini(self, prompt: str, token: str = None, client_id: str = None) -> Dict[str, Any]:
         import google.generativeai as genai
         from google.generativeai.types import FunctionDeclaration, Tool
         from google.ai.generativelanguage import Part, FunctionResponse
@@ -460,7 +462,7 @@ class Agent:
                 logger.info(f"Gemini requested tool call: {function_name}")
                 
                 # Execute the tool
-                raw_result = await self._execute_tool(function_name, function_args, token, prompt)
+                raw_result = await self._execute_tool(function_name, function_args, token, prompt, client_id)
                 
                 last_tool_name = function_name
                 last_tool_result = raw_result

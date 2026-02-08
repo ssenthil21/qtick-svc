@@ -5,10 +5,10 @@ from app.services.mock_service import MockService
 from app.services.java_service import JavaService
 from app.models import Lead, LeadCreateRequest, LeadCreateResponse, LeadListResponse, ToolResult
 
-def get_service(token: str = None):
+def get_service(token: str = None, client_id: str = None):
     if settings.USE_MOCK_DATA:
         return MockService(token)
-    return JavaService(token)
+    return JavaService(token, client_id)
 
 def format_whatsapp_lead_create(result: LeadCreateResponse) -> str:
     """Format lead creation for WhatsApp."""
@@ -65,10 +65,11 @@ async def create_lead(
     third_status: str = None,
     service_name: str = None,
     prompt: str = None,
-    token: str = None
+    token: str = None,
+    client_id: str = None
 ) -> ToolResult:
     """Create a new lead."""
-    service = get_service(token)
+    service = get_service(token, client_id)
     
     # If enquiry_for is not provided, use service_name, then original chat message (prompt)
     if not enquiry_for:
@@ -108,10 +109,10 @@ async def create_lead(
         whatsAppText=whatsAppText
     )
 
-async def list_leads(business_id: int, token: str = None) -> ToolResult:
+async def list_leads(business_id: int, token: str = None, client_id: str = None) -> ToolResult:
     """List all leads."""
     print(token)
-    service = get_service(token)
+    service = get_service(token, client_id)
 
     data = await service.list_leads(int(business_id))
     
