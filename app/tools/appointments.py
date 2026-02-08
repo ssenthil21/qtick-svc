@@ -46,7 +46,7 @@ async def list_appointments(business_id: int, from_date: str = None, to_date: st
     
     # Handle date logic
     period_to_check = period or from_date
-    if period_to_check and period_to_check.lower() in ["today", "yesterday", "this week", "last week", "this month", "last month"]:
+    if period_to_check and isinstance(period_to_check, str) and period_to_check.lower() in ["today", "yesterday", "this week", "last week", "this month", "last month"]:
         resolved_from, resolved_to = get_date_range(period_to_check)
         if resolved_from and resolved_to:
             from_date = resolved_from

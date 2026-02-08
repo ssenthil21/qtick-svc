@@ -18,13 +18,8 @@ def format_whatsapp_offer_list(offers: list, business_id: str) -> str:
     
     for i, offer in enumerate(offers):
         message += f"*{i+1}. {offer.title}*\n"
-        if offer.details:
-            message += f"_{offer.details}_\n"
         if offer.bp_link:
-            message += f"🔗 Tap to view: {offer.bp_link}\n"
-        if offer.endDate:
-             # Basic formatting if it's raw string, or could improve parsing
-            message += f"📅 Valid until: {offer.endDate[:10]}\n"
+            message += f"🔗 {offer.bp_link}\n"
         message += "\n"
         
     message += "Grab them while they last! 🚀"

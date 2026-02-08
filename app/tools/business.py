@@ -13,30 +13,24 @@ def get_service(token: str = None, client_id: str = None):
 
 def format_whatsapp_summary(data: BusinessSummary, from_date: str, to_date: str) -> str:
     """Format business summary for WhatsApp with encoding."""
-    # Assuming business name might be available in a real scenario, 
-    # but for now using a placeholder or just "Business Summary"
-    # The sample had "QTick – Chillbreeze"
     business_name = "QTick" 
     
-    # Format dates to human readable string (e.g. Jan 01, 2026)
     try:
         start_dt = datetime.strptime(from_date, "%Y/%m/%d")
         end_dt = datetime.strptime(to_date, "%Y/%m/%d")
-        # Format: Nov 01, 2025
         start_str = start_dt.strftime("%b %d, %Y")
         end_str = end_dt.strftime("%b %d, %Y")
     except Exception:
-        # Fallback if parsing fails
         start_str = from_date
         end_str = to_date
 
     message = (
         f"📊 *{business_name} Summary*\n"
         f"_{start_str} - {end_str} Business Summary_\n\n"
-        f"✅ *Leads Generated:* {data.total_leads}\n"
+        f"✅ *Enquiries:* {data.total_leads}\n"
         f"💰 *Revenue:* ₹{data.total_revenue:,.2f}\n"
-        f"📅 *Appointments Booked:* {data.total_appointments}\n"
-        f"🧾 *Bills Generated:* {data.bills_count}\n\n"
+        f"📅 *Bookings:* {data.total_appointments}\n"
+        f"🧾 *Bills :* {data.bills_count}\n\n"
         f"Thank you for growing with *QTick* 🚀"
     )
     
@@ -56,29 +50,26 @@ def format_whatsapp_franchise_summary(consolidated: BusinessSummary, details: li
         start_str = from_date
         end_str = to_date
 
-    # Create a simple unicode/text table
-    # ID  | Leads | Rev
-    # -----------------
-    # 123 |    10 | 1.2k
-    
-    table_lines = []
-    # Header
-    table_lines.append(f"`🆔  | �  | 💰  `")
-    # table_lines.append("`---|---|---`") # explicit separator often looks slightly misaligned in some fonts, but useful
+    # ID | Enq | Rev | Bkg
+    # Aligning exactly for monospaced backticks
+    # Headers use 2-byte emojis, columns are padded
+    header = f"` 🆔 | ✅ | 💰 | 📅 `"
+    table_lines = [header]
     
     for s in details:
-        # Truncate or format values to keep it compact
-        bid = str(s.business_id)[-4:] # Last 4 chars of ID if long
-        leads = str(s.total_leads).rjust(3)
+        bid = str(s.business_id)[-2:] # Using 2 digits to keep table narrow as per screenshot
+        enq = str(s.total_leads).center(2)
         
-        # Revenue formatting: k for thousands
+        # Revenue: k for thousands, centered in 3 chars
         if s.total_revenue >= 1000:
-            rev_str = f"{s.total_revenue/1000:.1f}k"
+            rev_str = f"{s.total_revenue/1000:.1f}k"[:3]
         else:
-            rev_str = f"{int(s.total_revenue)}"
-        rev_str = rev_str.rjust(4)
+            rev_str = str(int(s.total_revenue))
+        rev = rev_str.center(3)
         
-        line = f"`{bid:<3} | {leads} | {rev_str}`"
+        bkg = str(s.total_appointments).center(2)
+        
+        line = f"` {bid:<2} | {enq} | {rev} | {bkg} `"
         table_lines.append(line)
 
     table_str = "\n".join(table_lines)
@@ -88,12 +79,11 @@ def format_whatsapp_franchise_summary(consolidated: BusinessSummary, details: li
         f"_{start_str} - {end_str}_\n\n"
         f"{table_str}\n\n"
         f"🔥 *Total Performance:*\n"
-        f"✅ *Leads:* {consolidated.total_leads}\n"
+        f"✅ *Enquiries:* {consolidated.total_leads}\n"
         f"💰 *Revenue:* ₹{consolidated.total_revenue:,.0f}\n"
         f"📅 *Bookings:* {consolidated.total_appointments}\n"
     )
     
-    # Convert to unicode-escaped string
     escaped_message = json.dumps(message, ensure_ascii=True)[1:-1]
     return escaped_message
 
@@ -101,7 +91,14 @@ async def get_summary_for_business(business_id: str, from_date: str = None, to_d
     """Get a summary for a business."""
     from app.utils.date_utils import get_date_range
     
-    # ... (other code)
+    # Date handling logic
+    period_to_check = period or from_date
+    if period_to_check and isinstance(period_to_check, str) and period_to_check.lower() in ["today", "yesterday", "this week", "last week", "this month", "last month"]:
+        resolved_from, resolved_to = get_date_range(period_to_check)
+        if resolved_from and resolved_to:
+            from_date = resolved_from
+            to_date = resolved_to
+
     if not from_date or not to_date:
         # Fallback to today if nothing is provided
         from_date, to_date = get_date_range("today")
@@ -146,7 +143,7 @@ async def get_franchise_summary(business_ids: str, from_date: str = None, to_dat
     
     # Date handling logic
     period_to_check = period or from_date
-    if period_to_check and period_to_check.lower() in ["today", "yesterday", "this week", "last week", "this month", "last month"]:
+    if period_to_check and isinstance(period_to_check, str) and period_to_check.lower() in ["today", "yesterday", "this week", "last week", "this month", "last month"]:
         resolved_from, resolved_to = get_date_range(period_to_check)
         if resolved_from and resolved_to:
             from_date = resolved_from
