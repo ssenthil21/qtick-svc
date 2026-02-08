@@ -126,19 +126,25 @@ async def chat(request: ChatRequest, authorization: Optional[str] = Header(None)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/agent/phone/chat", response_model=ChatResponse)
-async def phone_chat(request: PhoneChatRequest, authorization: Optional[str] = Header(None)):
-    token = None
-    if authorization:
-        auth_parts = authorization.split(" ")
-        if len(auth_parts) > 1 and auth_parts[0].lower() == "bearer":
-            token = auth_parts[1]
+async def phone_chat(request: PhoneChatRequest):
+    # Lookup business ID using upstream API
+    from app.services.java_service import JavaService
+    
+    # We don't need user token here as the lookup uses system secret
+    service = JavaService()
+    business_id = await service.get_my_queues(request.phone)
+    
+    if not business_id:
+        # Fallback to local mapping if upstream fails (optional, but good for safety/dev)
+        # business_id = get_business_id_by_phone(request.phone)
+        pass
 
-    business_id = get_business_id_by_phone(request.phone)
     if not business_id:
         raise HTTPException(status_code=404, detail=f"No business found for phone number {request.phone}")
 
     try:
-        agent_response = await agent.process_prompt(request.prompt, business_id, token)
+        # Agent processing (no user token passed, agent uses system token if needed)
+        agent_response = await agent.process_prompt(request.prompt, business_id, None)
         return ChatResponse(
             prompt=request.prompt,
             type=agent_response.get("type", "Chat"),

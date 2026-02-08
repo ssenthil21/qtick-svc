@@ -3,7 +3,7 @@ import json
 from typing import Dict, Any, List
 from app.config import settings
 from app.models import ToolResult
-from app.tools import leads, appointments, invoices, business, catalog, help
+from app.tools import leads, appointments, invoices, business, catalog, help, offers
 
 # Tool definitions for the LLM
 TOOLS_DEFINITIONS = [
@@ -178,6 +178,37 @@ TOOLS_DEFINITIONS = [
             "description": "Get a guide of the assistant's capabilities for greetings, 'hi', 'hello', or help requests",
             "parameters": {"type": "object", "properties": {}}
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_franchise_summary",
+            "description": "Get franchise summary request",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "business_ids": {"type": "string", "description": "Comma separated list of business IDs"},
+                    "period": {"type": "string", "enum": ["today", "yesterday", "this week", "last week", "this month", "last month"], "description": "Quick period selection"},
+                    "from_date": {"type": "string", "description": "Start date in YYYY/MM/DD format (optional if period is used)"},
+                    "to_date": {"type": "string", "description": "End date in YYYY/MM/DD format (optional if period is used)"}
+                },
+                "required": ["business_ids"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_offers",
+            "description": "List active offers",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "business_id": {"type": "string", "description": "Business ID to fetch offers for"}
+                },
+                "required": ["business_id"]
+            }
+        }
     }
 ]
 
@@ -230,6 +261,10 @@ class Agent:
                 result = await catalog.search_services(**arguments)
             elif tool_name == "get_help_guide":
                 result = await help.get_help_guide()
+            elif tool_name == "get_franchise_summary":
+                result = await business.get_franchise_summary(**arguments)
+            elif tool_name == "list_offers":
+                result = await offers.list_offers(**arguments)
             else:
                 logger.error(f"Tool '{tool_name}' not found")
                 return f"Error: Tool {tool_name} not found"

@@ -87,7 +87,7 @@ class WebsiteAgent:
         import google.generativeai as genai
         from google.generativeai.types import FunctionDeclaration, Tool
         
-        genai.configure(api_key=settings.GEMINI_API_KEY)
+        genai.configure("api_key=settings.GEMINI_API_KEY")
         
         # gemini_tools = [
         #     FunctionDeclaration(

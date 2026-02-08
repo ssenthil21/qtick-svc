@@ -10,7 +10,7 @@ if sys.stdout.encoding != 'utf-8':
 if sys.stderr.encoding != 'utf-8':
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
-BASE_URL = "http://localhost:8001/agent/chat"
+BASE_URL = "http://localhost:8002/agent/chat"
 #BASE_URL = "https://qtick-svc-du97k.ondigitalocean.app/agent/chat"
 
 def run_prompt(prompt, business_id, description):
@@ -88,6 +88,16 @@ def main():
         {
             "name": "Search Services (Java API)",
             "prompt": "Search for 'facial' services for business ID 96.",
+            "business_id": 96
+        },
+        {
+            "name": "Franchise Summary (Java API)",
+            "prompt": "Get franchise summary for branches 96 and 97 for today.",
+            "business_id": 96
+        },
+        {
+            "name": "List Offers (Java API)",
+            "prompt": "Show me the offers for business 96.",
             "business_id": 96
         }
     ]

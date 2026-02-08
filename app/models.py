@@ -119,3 +119,15 @@ class BookingResponse(BaseModel):
     services: List[str]
     additionalDescription: Optional[str] = None
     accessToken: Optional[str] = None
+
+class Offer(BaseModel):
+    title: str
+    image: Optional[str] = None
+    startDate: Optional[str] = None
+    endDate: Optional[str] = None
+    details: Optional[str] = None
+    activeCampaigns: Dict[str, str] = {}
+    bp_link: Optional[str] = None  # Processed field for convenience
+
+class OfferListResponse(BaseModel):
+    items: List[Offer]

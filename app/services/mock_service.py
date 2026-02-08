@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from typing import List, Optional
-from app.models import Lead, Appointment, Invoice, BusinessSummary, LeadCreateRequest, LeadCreateResponse, LeadSummary, LeadListResponse, Service, BookingRequest, BookingResponse
+from app.models import Lead, Appointment, Invoice, BusinessSummary, LeadCreateRequest, LeadCreateResponse, LeadSummary, LeadListResponse, Service, BookingRequest, BookingResponse, Offer
 from app.services.base import BaseService
 
 class MockService(BaseService):
@@ -99,4 +99,24 @@ class MockService(BaseService):
     async def search_services(self, business_id: int, text: str, group_id: int = 0) -> List[Service]:
         return [
             Service(id=454, name="Simple Facial", price=590.0, gender=None, type="S")
+        ]
+
+    async def list_offers(self, business_id: str) -> List[Offer]:
+        return [
+            Offer(
+                title="Summer Special",
+                details="Get 20% off on all facials",
+                startDate="2024-06-01T10:00:00",
+                endDate="2024-06-30T20:00:00",
+                bp_link="https://qtick.biz/offers/summer-special",
+                activeCampaigns={"whatsapp": "link"}
+            ),
+            Offer(
+                title="Weekend Bonanza",
+                details="Buy 1 Get 1 Free on hair spa",
+                startDate="2024-06-07T10:00:00",
+                endDate="2024-06-09T20:00:00",
+                bp_link="https://qtick.biz/offers/weekend-bonanza",
+                activeCampaigns={}
+            )
         ]

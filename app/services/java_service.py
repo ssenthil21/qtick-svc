@@ -1,6 +1,6 @@
 import httpx
 import logging
-from app.models import Lead, Appointment, AppointmentSummary, Invoice, BusinessSummary, LeadCreateRequest, LeadCreateResponse, LeadSummary, LeadListResponse, Service, BookingRequest, BookingResponse
+from app.models import Lead, Appointment, AppointmentSummary, Invoice, BusinessSummary, LeadCreateRequest, LeadCreateResponse, LeadSummary, LeadListResponse, Service, BookingRequest, BookingResponse, Offer, OfferListResponse
 from typing import List, Optional, Dict, Any
 from app.services.base import BaseService
 from app.config import settings
@@ -316,6 +316,76 @@ class JavaService(BaseService):
         # Fixed to use self._get which handles relative URLs correctly
         response = await self._get("web/biz/services", params=params)
         return [Service(**item) for item in response]
+
+    async def list_offers(self, business_id: str) -> List[Offer]:
+        # GET /api/biz/{business_id}/offers
+        response_data = await self._get(f"api/biz/{business_id}/offers")
+        
+        offers = []
+        for item in response_data:
+            # Map fields
+            offer = Offer(
+                title=item.get("title") or "Untitled Offer",
+                image=item.get("image"),
+                startDate=item.get("startDate"),
+                endDate=item.get("endDate"),
+                details=item.get("details"),
+                activeCampaigns=item.get("activeCampaigns", {})
+            )
+            
+            # Extract BP link if available
+            if offer.activeCampaigns:
+                offer.bp_link = offer.activeCampaigns.get("BP")
+                
+            offers.append(offer)
+            
+        return offers
+
+    async def get_my_queues(self, phone: str) -> Optional[int]:
+        """
+        Get business ID by phone number from upstream API.
+        This uses a special secret key for authorization.
+        """
+        import logging
+        
+        # Prepare headers with secret key
+        headers = self.client.headers.copy()
+        if settings.QTICK_BIZ_PROFILE_SECRET:
+            headers["Authorization"] = settings.QTICK_BIZ_PROFILE_SECRET
+            
+        # Add X-ClientId header with the phone number
+        headers["X-ClientId"] = phone
+        
+        request_url = "api/biz/my-queues"
+        
+        logging.info(f"GET {request_url} (Auth: SECRET, X-ClientId: {phone})")
+        
+        try:
+            # We use the raw client to override headers completely if needed, 
+            # but _get uses self.client which has default headers.
+            # We'll use client.get directly to ensure we control headers for this specific call
+            response = await self.client.get(request_url, headers=headers)
+            
+            logging.info(f"Response Status: {response.status_code}")
+            
+            if response.status_code != 200:
+                logging.error(f"get_my_queues failed: {response.text}")
+                return None
+                
+            data = response.json()
+            if isinstance(data, list) and len(data) > 0:
+                first_item = data[0]
+                biz_id = first_item.get("bizId")
+                logging.info(f"Resolved phone {phone} to business_id {biz_id}")
+                return biz_id
+                
+            logging.warning(f"get_my_queues returned empty list or unexpected format for phone {phone}")
+            return None
+            
+        except Exception as e:
+            logging.error(f"Error in get_my_queues: {e}", exc_info=True)
+            return None
+
 
 def _utc_now_iso() -> str:
     from datetime import datetime, timezone
