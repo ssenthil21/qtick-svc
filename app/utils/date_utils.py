@@ -79,3 +79,54 @@ def get_date_range(period: str):
         return None, None
 
     return start.strftime("%Y/%m/%d"), end.strftime("%Y/%m/%d")
+
+def get_previous_date_range(period: str = None, from_date: str = None, to_date: str = None):
+    """
+    Calculates the previous period's start and end dates.
+    If period is provided, uses logical previous period (e.g. today -> yesterday).
+    If dates are provided, calculates duration and shifts back.
+    """
+    from datetime import timedelta
+    
+    # 1. Logical Period-based shift
+    if period:
+        period = period.lower().strip()
+        if period == "today":
+            return get_date_range("yesterday")
+        elif period == "yesterday":
+            # Day before yesterday
+            now = datetime.now()
+            start = now - timedelta(days=2)
+            end = now - timedelta(days=2)
+            return start.strftime("%Y/%m/%d"), end.strftime("%Y/%m/%d")
+        elif period == "this week":
+            return get_date_range("last week")
+        elif period == "this month":
+            return get_date_range("last month")
+        elif period == "last month":
+            # Month before last
+            now = datetime.now()
+            first_this = now.replace(day=1)
+            last_prev = first_this - timedelta(days=1)
+            first_prev = last_prev.replace(day=1)
+            
+            last_prev_prev = first_prev - timedelta(days=1)
+            first_prev_prev = last_prev_prev.replace(day=1)
+            return first_prev_prev.strftime("%Y/%m/%d"), last_prev_prev.strftime("%Y/%m/%d")
+            
+    # 2. Date-based shift
+    if from_date and to_date:
+        try:
+            start = datetime.strptime(from_date, "%Y/%m/%d")
+            end = datetime.strptime(to_date, "%Y/%m/%d")
+            duration = end - start
+            
+            # Shift back by duration + 1 day
+            prev_end = start - timedelta(days=1)
+            prev_start = prev_end - duration
+            
+            return prev_start.strftime("%Y/%m/%d"), prev_end.strftime("%Y/%m/%d")
+        except ValueError:
+            return None, None
+            
+    return None, None

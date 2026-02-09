@@ -34,7 +34,18 @@ async def test_phone_chat(phone: str, prompt: str):
                 print(f"Type: {data.get('type')}")
                 print(f"Text: {data.get('response_text')}")
                 if data.get('whatsAppText'):
-                    print(f"WhatsApp Text: {data.get('whatsAppText')}")
+                    print("\n" + "="*40)
+                    print("📱 WHATSAPP PREVIEW (Simulated)")
+                    print("-"*40)
+                    # Handle the JSON-escaped string (it comes from json.dumps()[1:-1])
+                    raw_text = data.get('whatsAppText')
+                    # We can use json.loads to resolve the escapes if we wrap it back in quotes
+                    try:
+                        resolved_text = json.loads(f'"{raw_text}"')
+                    except:
+                        resolved_text = raw_text
+                    print(resolved_text)
+                    print("="*40 + "\n")
                 if data.get('response_value'):
                     print(f"Value: {json.dumps(data.get('response_value'), indent=2)}")
                 return data
@@ -58,6 +69,8 @@ async def main():
         {"name": "Get Business Summary", "prompt": "Get business summary from 2026/01/01 to 2026/01/31."},
         {"name": "Search Services", "prompt": "Search for 'facial' services."},
         {"name": "Franchise Summary", "prompt": "Get franchise summary for branches 96 and 97 for today."},
+        {"name": "Compare Weekly Performance", "prompt": "compare this week with last week"},
+        {"name": "Compare Monthly Performance", "prompt": "compare this month with last month"},
         {"name": "List Offers", "prompt": "Show me the offers."}
     ]
 

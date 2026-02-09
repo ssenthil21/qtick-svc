@@ -192,7 +192,24 @@ TOOLS_DEFINITIONS = [
                     "from_date": {"type": "string", "description": "Start date in YYYY/MM/DD format (optional if period is used)"},
                     "to_date": {"type": "string", "description": "End date in YYYY/MM/DD format (optional if period is used)"}
                 },
-                "required": ["business_ids"]
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_business_performance_comparison",
+            "description": "Compare business metrics (revenue, leads, appointments) between two periods (e.g. today vs yesterday).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "business_id": {"type": "string", "description": "The business ID to compare. Defaults to current context."},
+                    "period": {"type": "string", "enum": ["today", "yesterday", "this week", "last week", "this month", "last month"], "description": "Quick period selection for the current period (the previous period is calculated automatically)"},
+                    "from_date": {"type": "string", "description": "Custom start date for current period (YYYY/MM/DD)"},
+                    "to_date": {"type": "string", "description": "Custom end date for current period (YYYY/MM/DD)"}
+                },
+                "required": ["business_id"]
             }
         }
     },
@@ -265,6 +282,8 @@ class Agent:
                 result = await business.get_franchise_summary(**arguments)
             elif tool_name == "list_offers":
                 result = await offers.list_offers(**arguments)
+            elif tool_name == "get_business_performance_comparison":
+                result = await business.get_business_performance_comparison(**arguments)
             else:
                 logger.error(f"Tool '{tool_name}' not found")
                 return f"Error: Tool {tool_name} not found"
@@ -292,6 +311,7 @@ class Agent:
             "If exactly one service is found, proceed to `create_appointment` with that ID. "
             "If multiple services are found, list them (ID, Name, Price) and ask the user to specify one. "
             "DO NOT guess the Service ID."
+            "For requests asking to compare metrics, growth, or performance (e.g., 'vs yesterday', 'growth today'), YOU MUST use the `get_business_performance_comparison` tool."
         )
 
         messages = [{"role": "system", "content": system_prompt},
@@ -418,6 +438,7 @@ class Agent:
             "If exactly one service is found, proceed to `create_appointment` with that ID. "
             "If multiple services are found, list them (ID, Name, Price) and ask the user to specify one. "
             "DO NOT guess the Service ID."
+            "For requests asking to compare metrics, growth, or performance (e.g., 'vs yesterday', 'growth today'), YOU MUST use the `get_business_performance_comparison` tool."
         )
 
         # Create the model with tools (declarations only)

@@ -10,6 +10,11 @@ INITIAL_DATA = {
     "919080534415": 11,
 }
 
+FRANCHISE_DETAILS = {
+    "6592701525": [96, 97, 119, 219],
+    "6590306703": [11],
+}
+
 def _load_mappings() -> dict:
     if not os.path.exists(MAPPINGS_FILE):
         return INITIAL_DATA
@@ -51,3 +56,12 @@ def add_mapping(phone_number: str, business_id: int) -> bool:
     mappings[normalized_phone] = business_id
     _save_mappings(mappings)
     return True
+
+def get_franchise_ids_by_phone(phone_number: str) -> list[int]:
+    """
+    Returns a list of business IDs for a given phone number (franchise).
+    Returns an empty list if not found.
+    """
+    normalized_phone = "".join(filter(str.isdigit, phone_number))
+    # We use the hardcoded FRANCHISE_DETAILS for now
+    return FRANCHISE_DETAILS.get(normalized_phone, [])
