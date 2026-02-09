@@ -187,7 +187,7 @@ TOOLS_DEFINITIONS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "business_ids": {"type": "string", "description": "Comma separated list of business IDs mentioned by the user (e.g., '96,97')"},
+                    "business_ids": {"type": "string", "description": "Comma separated list of business IDs mentioned by the user. If the user does not specify IDs, OMIT this parameter to use the auto-detected IDs from the phone number."},
                     "period": {"type": "string", "enum": ["today", "yesterday", "this week", "last week", "this month", "last month"], "description": "Quick period selection"},
                     "from_date": {"type": "string", "description": "Start date in YYYY/MM/DD format (optional if period is used)"},
                     "to_date": {"type": "string", "description": "End date in YYYY/MM/DD format (optional if period is used)"}
@@ -204,7 +204,7 @@ TOOLS_DEFINITIONS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "business_id": {"type": "string", "description": "The business ID to compare. Defaults to current context."},
+                    "business_id": {"type": "string", "description": "The business ID to compare. YOU MUST USE the 'CURRENT BUSINESS CONTEXT' ID provided in the system prompt if the user does not specify one. DO NOT ASK the user for it if the context is available."},
                     "period": {"type": "string", "enum": ["today", "yesterday", "this week", "last week", "this month", "last month"], "description": "Quick period selection for the current period (the previous period is calculated automatically)"},
                     "from_date": {"type": "string", "description": "Custom start date for current period (YYYY/MM/DD)"},
                     "to_date": {"type": "string", "description": "Custom end date for current period (YYYY/MM/DD)"}

@@ -253,12 +253,29 @@ def format_comparison_number(current: float, previous: float, is_currency: bool 
         return f"₹{format_short_number(current)} ({formatted_change})"
     return f"{format_short_number(current)} ({formatted_change})"
 
-async def get_business_performance_comparison(business_id: str, period: str = None, from_date: str = None, to_date: str = None, token: str = None, client_id: str = None) -> ToolResult:
+async def get_business_performance_comparison(business_id: str = None, period: str = None, from_date: str = None, to_date: str = None, token: str = None, client_id: str = None) -> ToolResult:
     """
     Compare business performance between two periods (e.g. This Week vs Last Week).
     """
     from app.utils.date_utils import get_date_range, get_previous_date_range
     
+    # Auto-detect business ID if missing (single business case)
+    if not business_id and client_id:
+        from app.utils.mappings import get_business_id_by_phone
+        # Try to get a single primary ID
+        detected_id = get_business_id_by_phone(client_id)
+        if detected_id:
+            business_id = str(detected_id)
+            print(f"Auto-detected business ID for comparison: {business_id}")
+            
+    if not business_id:
+         return ToolResult(
+            type="get_business_performance_comparison",
+            data=None,
+            text="Please specify the business ID for comparison, or ensure your phone number is registered to a business.",
+            whatsAppText=""
+        )
+
     # 1. Determine Current Period
     period_to_check = period or from_date
     if period_to_check and isinstance(period_to_check, str) and period_to_check.lower() in ["today", "yesterday", "this week", "last week", "this month", "last month"]:

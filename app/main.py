@@ -135,9 +135,11 @@ async def phone_chat(request: PhoneChatRequest):
     business_id = await service.get_my_queues(request.phone)
     
     if not business_id:
-        # Fallback to local mapping if upstream fails (optional, but good for safety/dev)
-        # business_id = get_business_id_by_phone(request.phone)
-        pass
+        from app.utils.mappings import get_business_id_by_phone
+        # Fallback to local mapping if upstream fails
+        business_id = get_business_id_by_phone(request.phone)
+        if business_id:
+            logging.info(f"Resolved business ID {business_id} from local mapping for phone {request.phone}")
 
     if not business_id:
         raise HTTPException(status_code=404, detail=f"No business found for phone number {request.phone}")
