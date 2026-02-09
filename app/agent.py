@@ -517,6 +517,12 @@ class Agent:
                     name=function_name,
                     response=msg_result if isinstance(msg_result, dict) else {"result": msg_result}
                 )))
+
+            # Optimization: If any tool OTHER THAN create_appointment was called, return immediately
+            # The tool result (WhatsApp text) is sufficient.
+            if any(fc.name != "create_appointment" for fc in function_calls):
+                logger.info("Optimization: Single-turn tool called, skipping final LLM generation")
+                break
             
             # Send all responses back in one message
             logger.info(f"Sending {len(responses)} tool results back to Gemini")

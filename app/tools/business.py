@@ -19,9 +19,9 @@ def format_short_number(num: float) -> str:
         return f"{num/1000:.1f}K".replace(".0K", "K")
     return str(int(num))
 
-def format_whatsapp_summary(data: BusinessSummary, from_date: str, to_date: str) -> str:
+def format_whatsapp_summary(data: BusinessSummary, from_date: str, to_date: str, business_id: str = "") -> str:
     """Format business summary for WhatsApp with encoding."""
-    business_name = "QTick" 
+    business_name = f"QTick (Biz #{business_id})" if business_id else "QTick"
     
     try:
         start_dt = datetime.strptime(from_date, "%Y/%m/%d")
@@ -61,7 +61,7 @@ def format_whatsapp_franchise_summary(consolidated: BusinessSummary, details: li
     # ID | Enq | Rev | Bkg
     # Aligning exactly for monospaced backticks
     # Headers use 2-byte emojis, columns are padded
-    header = f"`  🆔 |  ✅ |  💰  |  📅 `"
+    header = f"  🆔 |  ✅ |  💰  |  📅 "
     table_lines = [header]
     
     for s in details:
@@ -71,7 +71,7 @@ def format_whatsapp_franchise_summary(consolidated: BusinessSummary, details: li
         rev = format_short_number(s.total_revenue).rjust(4)
         bkg = str(s.total_appointments).rjust(2)
         
-        line = f"` {bid} |  {enq} | {rev} |  {bkg} `"
+        line = f" {bid} |  {enq} | {rev} |  {bkg} "
         table_lines.append(line)
 
     table_str = "\n".join(table_lines)
@@ -121,7 +121,7 @@ async def get_summary_for_business(business_id: str, from_date: str = None, to_d
         f"💰 Total Revenue: ₹{data.total_revenue:,.2f}"
     )
     
-    whatsAppText = format_whatsapp_summary(data, from_date, to_date)
+    whatsAppText = format_whatsapp_summary(data, from_date, to_date, business_id)
     
     return ToolResult(
         type="get_summary_for_business", 

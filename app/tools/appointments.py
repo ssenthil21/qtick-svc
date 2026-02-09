@@ -84,22 +84,25 @@ async def list_appointments(business_id: int, from_date: str = None, to_date: st
     text = "\n".join(text_lines)
 
     # WhatsApp Format
-    wa_lines = [f"📅 *Appointments ({len(data)})*"]
-    for appt in data:
-        try:
-           dt_obj = datetime.strptime(appt.start_time, "%Y-%m-%dT%H:%M:%S.000+0000")
-           time_str = dt_obj.strftime("%I:%M %p")
-           date_str = dt_obj.strftime("%d %b")
-        except:
-           time_str = appt.start_time
-           date_str = ""
-           
-        wa_lines.append(
-            f"🕒 *{date_str} {time_str}*\n"
-            f"👤 {appt.customer_name}\n"
-            f"💇 {appt.service_name}\n"
-            f"ℹ️ Status: {appt.status}\n"
-        )
+    wa_lines = [f"📅 *Appointments for Biz #{business_id}*"]
+    if not data:
+        wa_lines.append("No appointments found.")
+    else:
+        for appt in data:
+            # Format: 10:00 AM - Customer Name (Service)
+            # Status emoji
+            status_icon = "✅" if appt.status == "Confirmed" else "⏳" if appt.status == "Pending" else "❌"
+            
+            try:
+                dt = datetime.strptime(appt.bkStartTime, "%Y-%m-%dT%H:%M:%S.000+0000")
+                time_str = dt.strftime("%I:%M %p")
+            except:
+                time_str = appt.bkStartTime
+                
+            wa_lines.append(
+                f"{status_icon} *{time_str}* - {appt.customerName}\n"
+                f"💇 {appt.service_name}\n"
+            )
     
     wa_message = "\n".join(wa_lines)
     escaped_wa = json.dumps(wa_message, ensure_ascii=True)[1:-1]
