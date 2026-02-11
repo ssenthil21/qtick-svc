@@ -94,13 +94,13 @@ async def list_appointments(business_id: int, from_date: str = None, to_date: st
             status_icon = "✅" if appt.status == "Confirmed" else "⏳" if appt.status == "Pending" else "❌"
             
             try:
-                dt = datetime.strptime(appt.bkStartTime, "%Y-%m-%dT%H:%M:%S.000+0000")
+                dt = datetime.strptime(appt.start_time, "%Y-%m-%dT%H:%M:%S.000+0000")
                 time_str = dt.strftime("%I:%M %p")
             except:
-                time_str = appt.bkStartTime
+                time_str = appt.start_time
                 
             wa_lines.append(
-                f"{status_icon} *{time_str}* - {appt.customerName}\n"
+                f"{status_icon} *{time_str}* - {appt.customer_name}\n"
                 f"💇 {appt.service_name}\n"
             )
     

@@ -130,12 +130,12 @@ async def get_summary_for_business(business_id: str, from_date: str = None, to_d
         whatsAppText=whatsAppText
     )
 
-async def get_franchise_summary(business_ids: str, from_date: str = None, to_date: str = None, period: str = None, token: str = None, client_id: str = None) -> ToolResult:
+async def get_franchise_summary(business_ids: str = None, from_date: str = None, to_date: str = None, period: str = None, token: str = None, client_id: str = None) -> ToolResult:
     """
     Get a consolidated summary for multiple businesses (franchise report).
     
     Args:
-        business_ids: Comma-separated list of business IDs (e.g. "1,2,3")
+        business_ids: Comma-separated list of business IDs (e.g. "1,2,3"). Optional if client_id is provided.
         from_date: Start date (YYYY/MM/DD or YYYY-MM-DD)
         to_date: End date (YYYY/MM/DD or YYYY-MM-DD)
         period: shortcut like "today", "yesterday", "this week"
