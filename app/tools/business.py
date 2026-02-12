@@ -60,32 +60,41 @@ def format_whatsapp_franchise_summary(consolidated: BusinessSummary, details: li
 
     # ID | Enq | Rev | Bkg
     # Aligning exactly for monospaced backticks
-    # Headers use 2-byte emojis, columns are padded
-    header = f"  🆔 |  ✅ |  💰  |  📅 "
-    table_lines = [header]
+    # Monospaced Table inside Code Block
+    # Cols: ID(3), Enq(3), Rev(5), Bkg(3)
+    # Header: ID  | Enq |   Rev | Bkg
+    header = f"{'ID'.ljust(3)} | {'Enq'.rjust(3)} | {'Rev'.rjust(5)} | {'Bkg'.rjust(3)}"
+    
+    table_lines = ["```", header]
+    # Separator: --- | --- | ----- | ---
+    table_lines.append("--- | --- | ----- | ---")
     
     for s in details:
-        # Business ID (last 3 chars to handle 119, 219 etc)
-        bid = str(s.business_id)[-3:].rjust(3)
-        enq = str(s.total_leads).rjust(2)
-        rev = format_short_number(s.total_revenue).rjust(4)
-        bkg = str(s.total_appointments).rjust(2)
+        # Business ID (last 3 chars)
+        bid = str(s.business_id)[-3:].ljust(3)
+        # Enquiries
+        enq = str(s.total_leads).rjust(3)
+        # Revenue (e.g. 12.5K, 0)
+        rev = format_short_number(s.total_revenue).rjust(5)
+        # Bookings
+        bkg = str(s.total_appointments).rjust(3)
         
-        line = f" {bid} |  {enq} | {rev} |  {bkg} "
+        line = f"{bid} | {enq} | {rev} | {bkg}"
         table_lines.append(line)
-
+        
+    table_lines.append("```")
     table_str = "\n".join(table_lines)
 
     message = (
-        f"📊 *Franchise Report*\n"
-        f"_{start_str} - {end_str}_\n\n"
-        f"{table_str}\n\n"
+        f"📊 *Franchise Report* ({start_str} - {end_str})\n"
+        f"{table_str}\n"
         f"🔥 *Total Performance:*\n"
         f"✅ *Enquiries:* {consolidated.total_leads}\n"
         f"💰 *Revenue:* ₹{format_short_number(consolidated.total_revenue)}\n"
         f"📅 *Bookings:* {consolidated.total_appointments}\n"
     )
     
+    # Escape for JSON but keep newlines for WhatsApp
     escaped_message = json.dumps(message, ensure_ascii=True)[1:-1]
     return escaped_message
 

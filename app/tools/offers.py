@@ -17,7 +17,7 @@ def format_whatsapp_offer_list(offers: list, business_id: str) -> str:
     message = f"🎉 *Active Offers for Business #{business_id}*\n\n"
     
     for i, offer in enumerate(offers):
-        message += f"*{i+1}. {offer.title}*\n"
+        message += f"*{i+1}. {offer.header}*\n"
         if offer.bp_link:
             message += f"🔗 {offer.bp_link}\n"
         message += "\n"
@@ -51,7 +51,7 @@ async def list_offers(business_id: str, token: str = None, client_id: str = None
     else:
         text = f"Found {len(offers)} active offers for business {business_id}:\n\n"
         for offer in offers:
-            text += f"Title: {offer.title}\n"
+            text += f"Title: {offer.header}\n"
             text += f"Details: {offer.details}\n"
             text += f"BP Link: {offer.bp_link}\n"
             text += "---\n"

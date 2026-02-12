@@ -368,7 +368,7 @@ class JavaService(BaseService):
         for item in response_data:
             # Map fields
             offer = Offer(
-                title=item.get("title") or "Untitled Offer",
+                header=item.get("header") or "Untitled Offer",
                 image=item.get("image"),
                 startDate=item.get("startDate"),
                 endDate=item.get("endDate"),

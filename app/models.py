@@ -121,7 +121,7 @@ class BookingResponse(BaseModel):
     accessToken: Optional[str] = None
 
 class Offer(BaseModel):
-    title: str
+    header: str
     image: Optional[str] = None
     startDate: Optional[str] = None
     endDate: Optional[str] = None
