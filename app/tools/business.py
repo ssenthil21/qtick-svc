@@ -61,32 +61,48 @@ def format_whatsapp_franchise_summary(consolidated: BusinessSummary, details: li
     # ID | Enq | Rev | Bkg
     # Aligning exactly for monospaced backticks
     # Monospaced Table inside Code Block
+    # Monospaced Table inside Code Block
     # Cols: ID(3), Enq(3), Rev(5), Bkg(3)
-    # Header: ID  | Enq |   Rev | Bkg
-    header = f"{'ID'.ljust(3)} | {'Enq'.rjust(3)} | {'Rev'.rjust(5)} | {'Bkg'.rjust(3)}"
+    # Header using icons (assuming approx 2 chars width for emoji)
+    # ID: "🆔 " (2+1=3?) No, usually emoji is 2 chars. Let's try to center/align.
+    # We'll use a mix of spaces to align. 
+    # Note: Emojis inside code blocks on WhatsApp can be tricky. 
+    # Best compromise: ID | ✅ | 💰  | 📅
+    
+    # Header: "🆔 | ✅|   💰| 📅"
+    # Separator: "---|---|-----|---" (matches data widths: 3, 3, 5, 3)
+    
+    # Visual Alignment (assuming straight pipes and Emoji=2 chars):
+    # Expanded widths for better alignment: 4, 4, 6, 4
+    # Col 1 (4): "🆔  " (Emoji+2 Spaces)
+    # Col 2 (4): "  ✅" (2 Spaces+Emoji)
+    # Col 3 (6): "    💰" (4 Spaces+Emoji)
+    # Col 4 (4): "  📅" (2 Spaces+Emoji)
+    
+    header = "🆔  |  ✅|    💰|  📅"
     
     table_lines = ["```", header]
-    # Separator: --- | --- | ----- | ---
-    table_lines.append("--- | --- | ----- | ---")
+    # Separator: ----|----|------|----
+    table_lines.append("----|----|------|----")
     
     for s in details:
         # Business ID (last 3 chars)
-        bid = str(s.business_id)[-3:].ljust(3)
+        bid = str(s.business_id)[-3:].ljust(4)
         # Enquiries
-        enq = str(s.total_leads).rjust(3)
+        enq = str(s.total_leads).rjust(4)
         # Revenue (e.g. 12.5K, 0)
-        rev = format_short_number(s.total_revenue).rjust(5)
+        rev = format_short_number(s.total_revenue).rjust(6)
         # Bookings
-        bkg = str(s.total_appointments).rjust(3)
+        bkg = str(s.total_appointments).rjust(4)
         
-        line = f"{bid} | {enq} | {rev} | {bkg}"
+        line = f"{bid}|{enq}|{rev}|{bkg}"
         table_lines.append(line)
         
     table_lines.append("```")
     table_str = "\n".join(table_lines)
 
     message = (
-        f"📊 *Franchise Report* ({start_str} - {end_str})\n"
+        f"📊 *Branch Summary* ({start_str} - {end_str})\n"
         f"{table_str}\n"
         f"🔥 *Total Performance:*\n"
         f"✅ *Enquiries:* {consolidated.total_leads}\n"
@@ -247,20 +263,26 @@ async def get_franchise_summary(business_ids: str = None, from_date: str = None,
     )
 
 def format_comparison_number(current: float, previous: float, is_currency: bool = False) -> str:
-    """Format comparison with emoji arrows."""
+    """Format comparison as: Previous -> Current (Icon Change%)."""
+    
+    # helper for value formatting
+    def fmt(val):
+        return f"₹{format_short_number(val)}" if is_currency else str(int(val))
+
     if previous == 0:
         if current == 0:
-            return "0% (No change)"
-        return "N/A (New)"
+            return f"{fmt(previous)} → {fmt(current)} (➖ 0%)"
+        return f"{fmt(previous)} → {fmt(current)} (🟢 New)"
         
     change = ((current - previous) / previous) * 100
-    icon = "⬆️" if change > 0 else "⬇️" if change < 0 else "➖"
+    if change > 0:
+        icon = "🟢 ⬆️"
+    elif change < 0:
+        icon = "🔴 ⬇️"
+    else:
+        icon = "➖"
     
-    formatted_change = f"{icon} {abs(change):.1f}%"
-    
-    if is_currency:
-        return f"₹{format_short_number(current)} ({formatted_change})"
-    return f"{format_short_number(current)} ({formatted_change})"
+    return f"{fmt(previous)} → {fmt(current)} ({icon} {abs(change):.1f}%)"
 
 async def get_business_performance_comparison(business_id: str = None, period: str = None, from_date: str = None, to_date: str = None, token: str = None, client_id: str = None) -> ToolResult:
     """
@@ -289,28 +311,39 @@ async def get_business_performance_comparison(business_id: str = None, period: s
     period_to_check = period or from_date
     if period_to_check and isinstance(period_to_check, str) and period_to_check.lower() in ["today", "yesterday", "this week", "last week", "this month", "last month"]:
         from_date, to_date = get_date_range(period_to_check)
-    
+    else:
+        # If dates are manual, use them directly
+        pass
+
     if not from_date or not to_date:
         from_date, to_date = get_date_range("today")
-        period = "today"
-
-    # Normalize dates
-    from_date = from_date.replace("-", "/")
-    to_date = to_date.replace("-", "/")
+        period_to_check = period_to_check or "today" # Ensure period_to_check is set for get_previous_date_range
 
     # 2. Determine Previous Period
-    prev_from, prev_to = get_previous_date_range(period, from_date, to_date)
+    prev_from, prev_to = get_previous_date_range(period_to_check, from_date, to_date)
     
     if not prev_from or not prev_to:
-        return ToolResult(type="error", text="Could not determine previous comparison period.")
+         return ToolResult(
+            type="get_business_performance_comparison",
+            data=None,
+            text="Could not determine comparison period.",
+            whatsAppText=""
+        )
 
-    service = get_service(token, client_id)
+    # Normalize dates
+    if from_date: from_date = from_date.replace("-", "/")
+    if to_date: to_date = to_date.replace("-", "/")
     
     # 3. Fetch Data
+    service = get_service(token, client_id)
     current_data = await service.get_summary_for_business(business_id, from_date, to_date)
     prev_data = await service.get_summary_for_business(business_id, prev_from, prev_to)
     
-    # 4. Format Output
+    # 4. Calculate Comparisons
+    leads_comp = format_comparison_number(current_data.total_leads, prev_data.total_leads)
+    revenue_comp = format_comparison_number(current_data.total_revenue, prev_data.total_revenue, is_currency=True)
+    appt_comp = format_comparison_number(current_data.total_appointments, prev_data.total_appointments)
+    
     text = (
         f"📊 Performance Comparison for Business {business_id}\n"
         f"Current: {from_date} - {to_date}\n"
@@ -320,24 +353,43 @@ async def get_business_performance_comparison(business_id: str = None, period: s
         f"📅 Bookings: {current_data.total_appointments} (vs {prev_data.total_appointments})\n"
     )
     
-    # WhatsApp Formatting
+    # WhatsApp Format
+    # Clean Business ID
+    biz_id_str = str(business_id).replace(".0", "")
+    
+    # Dynamic Title based on Period
+    # period_to_check could be "this week", "today", "last month" etc.
+    p = (period_to_check or "").lower()
+    if "week" in p:
+        title = "Weekly Comparison"
+    elif "month" in p:
+        title = "Monthly Comparison"
+    elif "day" in p or "today" in p or "yesterday" in p:
+        title = "Daily Comparison"
+    else:
+        title = "Performance Insight"
+        
+    header_text = f"📈 *{title}* (Biz #{biz_id_str})"
+    period_text = f"_{period_to_check.title() if period_to_check else 'Custom'} vs Previous_"
+    
     message = (
-        f"📊 *Performance Insight*\n"
-        f"_{period.title() if period else 'Custom Period'} vs Previous_\n\n"
-        f"✅ *Enquiries*: {format_comparison_number(current_data.total_leads, prev_data.total_leads)}\n"
-        f"💰 *Revenue*: {format_comparison_number(current_data.total_revenue, prev_data.total_revenue, True)}\n"
-        f"📅 *Bookings*: {format_comparison_number(current_data.total_appointments, prev_data.total_appointments)}\n\n"
+        f"{header_text}\n"
+        f"{period_text}\n\n"
+        f"✅ *Enquiries:* {leads_comp}\n"
+        f"� *Bookings:* {appt_comp}\n"
+        f"� *Revenue:* {revenue_comp}\n\n"
         f"🚀 *Keep growing!*"
     )
     
-    whatsAppText = json.dumps(message, ensure_ascii=True)[1:-1]
-    
+    escaped_message = json.dumps(message, ensure_ascii=True)[1:-1]
+
     return ToolResult(
         type="get_business_performance_comparison",
         data={
-            "current": current_data,
-            "previous": prev_data
+            "current": current_data.dict(),
+            "previous": prev_data.dict()
         },
         text=text,
-        whatsAppText=whatsAppText
+        whatsAppText=escaped_message
     )
+

@@ -84,13 +84,18 @@ async def list_appointments(business_id: int, from_date: str = None, to_date: st
     text = "\n".join(text_lines)
 
     # WhatsApp Format
-    wa_lines = [f"📅 *Appointments for Biz #{business_id}*"]
+    # Remove .0 if present in business_id
+    biz_id_str = str(business_id).replace(".0", "")
+    
+    wa_lines = [f"📅 *Appointments for Biz #{biz_id_str}* ({len(data)})"]
+    
     if not data:
         wa_lines.append("No appointments found.")
     else:
         for appt in data:
             # Format: 10:00 AM - Customer Name (Service)
             # Status emoji
+            # Confirmed: ✅, Pending: ⏳, Cancelled/Other: ❌
             status_icon = "✅" if appt.status == "Confirmed" else "⏳" if appt.status == "Pending" else "❌"
             
             try:

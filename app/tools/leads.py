@@ -31,11 +31,14 @@ def format_whatsapp_lead_list(data: LeadListResponse, business_id: int) -> str:
     # Sort leads by value descending for the top 5 list
     sorted_items = sorted(data.items, key=lambda x: x.leadValue, reverse=True)
     
-    message = f"📋 *Lead List for Biz #{business_id}*\n"
-    message += f"👥 Total Leads: {data.total}\n"
+    # Clean Business ID
+    biz_id_str = str(business_id).replace(".0", "")
+    
+    message = f"📋 *Enquiries for Biz #{biz_id_str}*\n"
+    message += f"👥 Total Enquiries: {data.total}\n"
     message += f"💰 Total Potential Value: ₹{total_value:,.2f}\n"
     
-    message += "🔝 *Top 5 Leads by Value:*\n"
+    message += "🔝 *Top 5 Enquiries by Value:*\n"
     # List top 5 leads
     for i, item in enumerate(sorted_items[:5]):
         message += f"{i+1}. *{item.name}* (₹{item.leadValue:,.2f}) - {item.status}\n"
