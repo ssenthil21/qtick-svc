@@ -27,6 +27,31 @@ logging.basicConfig(
 
 app = FastAPI(title="QTick MCP Service")
 
+CHAT_MENU = {
+    "1": "Get franchise summary for this month",
+    "2": "List all offers",
+    "3": "Get summary for today",
+    "4": "Get weekly performance comparison",
+    "5": "List all leads",
+    "6": "List all appointments",
+    "7": "I want to create an appointment. Guide me.",
+    "8": "I want to create a new lead. Guide me."
+}
+
+def get_chat_menu_text():
+    menu = "🔢 *Chat Shortcuts:*\n"
+    menu += "1. 📊 Branch Summary (Month)\n"
+    menu += "2. 🏷️ List Offers\n"
+    menu += "3. 📉 Today's Summary\n"
+    menu += "4. 📈 Performance Insight\n"
+    menu += "5. 📋 Enquiries\n"
+    menu += "6. 📅 Appointments\n"
+    menu += "7. ➕ Create Appointment\n"
+    menu += "8. ✍️ Create Lead\n\n"
+    menu += "Type a number or ask normally!"
+    return menu
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -135,18 +160,37 @@ async def phone_chat(request: PhoneChatRequest):
     business_id = await service.get_my_queues(request.phone)
     
     if not business_id:
-        from app.utils.mappings import get_business_id_by_phone
-        # Fallback to local mapping if upstream fails
-        business_id = get_business_id_by_phone(request.phone)
-        if business_id:
-            logging.info(f"Resolved business ID {business_id} from local mapping for phone {request.phone}")
+        # Fallback to local mapping if upstream fails (optional, but good for safety/dev)
+        # business_id = get_business_id_by_phone(request.phone)
+        pass
 
     if not business_id:
         raise HTTPException(status_code=404, detail=f"No business found for phone number {request.phone}")
 
+    import json
+    prompt = request.prompt.strip()
+    
+    # Menu Handler
+    if prompt.lower() in ["menu", "help", "options"]:
+        menu_text = get_chat_menu_text()
+        # JSON escape for WhatsApp format compatibility
+        escaped_menu = json.dumps(menu_text, ensure_ascii=True)[1:-1]
+        return ChatResponse(
+            prompt=request.prompt,
+            type="Chat",
+            response_text="Here is the menu",
+            response_value=None,
+            whatsAppText=escaped_menu
+        )
+        
+    # Shortcut Handler
+    if prompt in CHAT_MENU:
+        logging.info(f"Using shortcut {prompt}: {CHAT_MENU[prompt]}")
+        prompt = CHAT_MENU[prompt]
+
     try:
         # Agent processing (no user token passed, agent uses system token if needed)
-        agent_response = await agent.process_prompt(request.prompt, business_id, None, request.phone)
+        agent_response = await agent.process_prompt(prompt, business_id, None, request.phone)
         return ChatResponse(
             prompt=request.prompt,
             type=agent_response.get("type", "Chat"),

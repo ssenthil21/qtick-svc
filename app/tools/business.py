@@ -376,8 +376,8 @@ async def get_business_performance_comparison(business_id: str = None, period: s
         f"{header_text}\n"
         f"{period_text}\n\n"
         f"✅ *Enquiries:* {leads_comp}\n"
-        f"� *Bookings:* {appt_comp}\n"
-        f"� *Revenue:* {revenue_comp}\n\n"
+        f"📅 *Bookings:* {appt_comp}\n"
+        f"💰 *Revenue:* {revenue_comp}\n\n"
         f"🚀 *Keep growing!*"
     )
     
@@ -392,4 +392,3 @@ async def get_business_performance_comparison(business_id: str = None, period: s
         text=text,
         whatsAppText=escaped_message
     )
-
