@@ -345,16 +345,13 @@ class JavaService(BaseService):
         
         # This specific endpoint (web/biz/services) typically requires a Bearer token
         # even during phone chats where other endpoints use the secret key.
-        headers = {}
-        if settings.QTICK_JAVA_SERVICE_TOKEN:
-            headers["Authorization"] = f"Bearer {settings.QTICK_JAVA_SERVICE_TOKEN}"
-            
-        # Using self.client.get directly with specific headers to avoid using the 
-        # default secret key set in __init__ for phone chats.
-        response = await self.client.get("web/biz/services", params=params, headers=headers)
-        
+        # Use a new client to ensure no auth headers are sent
+        # We need to ensure we use the same base_url
+        async with httpx.AsyncClient(base_url=self.base_url) as client:
+            response = await client.get("web/biz/services", params=params)
+             
         if response.status_code == 401:
-            logging.error(f"search_services failed with 401. Tried Bearer: {mask_key(headers.get('Authorization'))}")
+            logging.error(f"search_services failed with 401. This might indicate the backend still requires auth.")
             
         response.raise_for_status()
         return [Service(**item) for item in response.json()]
