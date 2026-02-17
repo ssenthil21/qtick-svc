@@ -370,7 +370,7 @@ async def get_business_performance_comparison(business_id: str = None, period: s
         title = "Performance Insight"
         
     header_text = f"📈 *{title}* (Biz #{biz_id_str})"
-    period_text = f"_{period_to_check.title() if period_to_check else 'Custom'} vs Previous_"
+    period_text = f"_Previous vs {period_to_check.title() if period_to_check else 'Custom'}_"
     
     message = (
         f"{header_text}\n"

@@ -337,11 +337,10 @@ class JavaService(BaseService):
             recent_activities=data.get("recentActivities", [])
         )
 
-    async def search_services(self, business_id: int, text: str, group_id: int = 0) -> List[Service]:
+    async def search_services(self, business_id: int, text: str) -> List[Service]:
         params = {
             "bizId": int(business_id),
-            "text": text,
-            "groupId": int(group_id)
+            "text": text
         }
         
         # This specific endpoint (web/biz/services) typically requires a Bearer token

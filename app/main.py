@@ -165,7 +165,13 @@ async def phone_chat(request: PhoneChatRequest):
         pass
 
     if not business_id:
-        raise HTTPException(status_code=404, detail=f"No business found for phone number {request.phone}")
+        return ChatResponse(
+            prompt=request.prompt,
+            type="Error",
+            response_text="Your number does not have a business configured.",
+            response_value=None,
+            whatsAppText="Your number does not have a business configured."
+        )
 
     import json
     prompt = request.prompt.strip()

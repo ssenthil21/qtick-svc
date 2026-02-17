@@ -164,8 +164,7 @@ TOOLS_DEFINITIONS = [
                 "type": "object",
                 "properties": {
                     "business_id": {"type": "integer"},
-                    "text": {"type": "string", "description": "Search text for service name"},
-                    "group_id": {"type": "integer", "description": "Group ID (default 0)"}
+                    "text": {"type": "string", "description": "Search text for service name"}
                 },
                 "required": ["business_id", "text"]
             }

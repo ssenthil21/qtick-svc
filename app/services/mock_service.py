@@ -96,7 +96,7 @@ class MockService(BaseService):
             recent_activities=["New lead created", "Invoice paid"]
         )
 
-    async def search_services(self, business_id: int, text: str, group_id: int = 0) -> List[Service]:
+    async def search_services(self, business_id: int, text: str) -> List[Service]:
         return [
             Service(id=454, name="Simple Facial", price=590.0, gender=None, type="S")
         ]
