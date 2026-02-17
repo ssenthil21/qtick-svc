@@ -10,7 +10,7 @@ if sys.stdout.encoding != 'utf-8':
 if sys.stderr.encoding != 'utf-8':
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
-BASE_URL = "http://localhost:8002/agent/chat"
+BASE_URL = "http://localhost:8001/agent/chat"
 #BASE_URL = "https://qtick-svc-du97k.ondigitalocean.app/agent/chat"
 
 def run_prompt(prompt, business_id, description):

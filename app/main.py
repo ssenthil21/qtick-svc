@@ -17,6 +17,7 @@ from app.website_agent import WebsiteAgent
 import logging
 import sys
 from app.utils.mappings import get_business_id_by_phone, add_mapping
+from app.models import LeadRegisterRequest, LeadCreateRequest
 
 # Configure logging
 logging.basicConfig(
@@ -239,6 +240,33 @@ async def business_register(request: BusinessRegisterRequest):
         return {"message": "Mapping registered successfully", "phone": request.phone, "business_id": request.business_id}
     else:
         raise HTTPException(status_code=400, detail=f"Business ID {request.business_id} is already assigned to another phone number")
+
+@app.post("/lead/register")
+async def register_lead(request: LeadRegisterRequest):
+    from app.services.java_service import JavaService
+    service = JavaService(client_id=request.x_client_id)
+    
+    # Map LeadRegisterRequest to LeadCreateRequest
+    create_request = LeadCreateRequest(
+        business_id=request.business_id,
+        name=request.owner_name,
+        phone=request.mobile_number,
+        email=None,
+        source="WE",
+        notes=request.salon_name,
+        location=request.city,
+        enquiry_for=request.plan,
+        details=f"{request.plan} - {request.salon_name}",
+        campId=request.campId or 779,
+        campName=request.campName or "QTICK-ABCEXPO"
+    )
+    
+    try:
+        response = await service.create_lead(create_request)
+        return {"message": "Lead registered successfully", "lead_id": response.lead_id}
+    except Exception as e:
+        logging.error(f"Error registering lead: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/health")
 async def health():

@@ -82,21 +82,22 @@ class JavaService(BaseService):
 
             payload: Dict[str, Any] = {
                 "bizId": request.business_id,
-                "phone": request.phone.replace('+', '') if request.phone else None,
-                "email": request.email,
+                "phone": request.phone.replace('+', '') if request.phone else "",
+                "email": request.email or "",
                 "custName": request.name,
-                "enqFor": request.enquiry_for[:100] if request.enquiry_for else None,
-                "srcChannel": "PH", # Fixed as per user sample "PH"
-                "campId": None,
-                "campName": None,
+                "enqFor": request.enquiry_for[:100] if request.enquiry_for else "",
+                "srcChannel": "BP",
+                "campId": request.campId,
+                "campName": request.campName,
                 "details": request.details or "",
                 "interest": request.interest or 2,
                 "enqForTime": enquiry_for_time,
                 "followUpDate": follow_up_date,
                 "enquiredOn": enquired_on,
                 "attnStaffId": request.attention_staff_id or 475,
-                "enqNo": None,
-                "custId": None,
+                "enqNo": 0,
+                "custId": 0,
+                "notes": request.notes or "",
                 "services": services_payload
             }
 
@@ -108,13 +109,29 @@ class JavaService(BaseService):
             logging.info(f"Sending create_lead payload:\n{json.dumps(payload, indent=2, default=str)}")
 
             # Use secret explicitly for lead creation
-            headers = self.client.headers.copy()
+            headers = {
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+            }
             if settings.QTICK_BIZ_PROFILE_SECRET:
                 headers["Authorization"] = settings.QTICK_BIZ_PROFILE_SECRET
+                logging.info(f"Using BIZ_PROFILE_SECRET: {mask_key(settings.QTICK_BIZ_PROFILE_SECRET)} for create_lead")
+            else:
+                logging.warning("QTICK_BIZ_PROFILE_SECRET is not set! create_lead might fail.")
+
+            if "X-ClientId" in self.client.headers:
+                headers["X-ClientId"] = self.client.headers["X-ClientId"]
+
+            logging.info(f"POST {self.base_url}api/biz/sales-enq")
+            safe_headers = headers.copy()
+            if "Authorization" in safe_headers:
+                safe_headers["Authorization"] = mask_key(safe_headers["Authorization"])
+            logging.info(f"Headers: {safe_headers}")
 
             # data = await self._post("api/biz/sales-enq", payload)
-            # Use raw post to override headers for this specific call
-            response = await self.client.post("api/biz/sales-enq", json=payload, headers=headers)
+            # Use raw post with fresh client to override headers completely for this specific call
+            async with httpx.AsyncClient(base_url=self.base_url) as client:
+                response = await client.post("api/biz/sales-enq", json=payload, headers=headers)
             
             logging.info(f"Response Status: {response.status_code}")
             logging.info(f"Response Content: '{response.text}'")

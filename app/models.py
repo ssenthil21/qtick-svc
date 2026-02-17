@@ -34,6 +34,8 @@ class LeadCreateRequest(BaseModel):
     attention_channel: Optional[str] = None
     third_status: Optional[str] = None
     service_name: Optional[str] = None
+    campId: Optional[int] = None
+    campName: Optional[str] = None
 
 class LeadCreateResponse(BaseModel):
     lead_id: str
@@ -46,6 +48,17 @@ class LeadCreateResponse(BaseModel):
     enqFor: Optional[str] = None
     value: float = 0.0
     leadValue: float = 0.0
+
+class LeadRegisterRequest(BaseModel):
+    business_id: int
+    owner_name: str
+    mobile_number: str
+    salon_name: str
+    city: str
+    plan: str
+    x_client_id: Optional[str] = None
+    campId: Optional[int] = None
+    campName: Optional[str] = None
 
 class LeadSummary(BaseModel):
     lead_id: str
