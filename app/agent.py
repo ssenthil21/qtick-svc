@@ -238,6 +238,10 @@ class Agent:
         
     async def process_prompt(self, prompt: str, business_id: int, token: str = None, client_id: str = None) -> Dict[str, Any]:
         logger.info(f"Processing prompt: {prompt}")
+        
+        # Log what is being passed to the model as requested
+        logger.info(f"Passing to model - Prompt: '{prompt}', Business ID: {business_id}")
+        
         if self.provider == "openai":
             return await self._process_openai(prompt, business_id, token, client_id)
         elif self.provider == "gemini":

@@ -130,7 +130,7 @@ async def chat(request: ChatRequest, authorization: Optional[str] = Header(None)
             return ChatResponse(
                 prompt=request.prompt,
                 type="Chat",
-                response_text="Here is the menu",
+                response_text=menu_text,
                 response_value=None,
                 whatsAppText=escaped_menu
             )
