@@ -139,7 +139,30 @@ async def chat(request: ChatRequest, authorization: Optional[str] = Header(None)
 
 
     try:
-        agent_response = await agent.process_prompt(request.prompt, request.business_id, token)
+        import json
+        from app.utils.chat_menu import CHAT_MENU, get_chat_menu_text
+        
+        prompt = request.prompt.strip()
+        
+        # Menu Handler
+        if prompt.lower() in ["menu", "help", "options"]:
+            menu_text = get_chat_menu_text()
+            # JSON escape for WhatsApp format compatibility
+            escaped_menu = json.dumps(menu_text, ensure_ascii=True)[1:-1]
+            return ChatResponse(
+                prompt=request.prompt,
+                type="Chat",
+                response_text="Here is the menu",
+                response_value=None,
+                whatsAppText=escaped_menu
+            )
+            
+        # Shortcut Handler
+        if prompt in CHAT_MENU:
+            logging.info(f"Using shortcut {prompt}: {CHAT_MENU[prompt]}")
+            prompt = CHAT_MENU[prompt]
+            
+        agent_response = await agent.process_prompt(prompt, request.business_id, token)
         return ChatResponse(
             prompt=request.prompt,
             type=agent_response.get("type", "Chat"),
