@@ -386,7 +386,7 @@ class JavaService(BaseService):
                 startDate=item.get("startDate"),
                 endDate=item.get("endDate"),
                 details=item.get("details"),
-                activeCampaigns=item.get("activeCampaigns", {})
+                activeCampaigns=item.get("activeCampaigns") or {}
             )
             
             # Extract BP link if available
