@@ -108,12 +108,22 @@ class JavaService(BaseService):
             import json
             logging.info(f"Sending create_lead payload:\n{json.dumps(payload, indent=2, default=str)}")
 
-            # Use secret explicitly for lead creation
+            # Use secret explicitly for lead creation ONLY if not already authenticated
             headers = {
                 "Accept": "application/json",
                 "Content-Type": "application/json"
             }
-            if settings.QTICK_BIZ_PROFILE_SECRET:
+            
+            # Check if we have a client-level Authorization header (from init)
+            # If so, prefer it (Case 1: /agent/chat with user token)
+            # If not, try to use the secret (Case 2: /phone/chat, etc.)
+            client_auth = self.client.headers.get("Authorization")
+            
+            if client_auth:
+                # We already have an auth token from init
+                headers["Authorization"] = client_auth
+                logging.info("Using existing Client Authorization header for create_lead")
+            elif settings.QTICK_BIZ_PROFILE_SECRET:
                 headers["Authorization"] = settings.QTICK_BIZ_PROFILE_SECRET
                 logging.info(f"Using BIZ_PROFILE_SECRET: {mask_key(settings.QTICK_BIZ_PROFILE_SECRET)} for create_lead")
             else:

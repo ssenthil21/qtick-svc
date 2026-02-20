@@ -153,12 +153,14 @@ async def chat(request: ChatRequest, authorization: Optional[str] = Header(None)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/agent/phone/chat", response_model=ChatResponse)
-async def phone_chat(request: PhoneChatRequest):
+async def phone_chat(request: PhoneChatRequest, x_client_id: Optional[str] = Header(None)):
     # Lookup business ID using upstream API
     from app.services.java_service import JavaService
     
     # We don't need user token here as the lookup uses system secret
-    service = JavaService()
+    # But we pass client_id if provided, otherwise default to phone number
+    final_client_id = x_client_id if x_client_id else request.phone
+    service = JavaService(client_id=final_client_id)
     business_id = await service.get_my_queues(request.phone)
     
     if not business_id:
@@ -199,7 +201,8 @@ async def phone_chat(request: PhoneChatRequest):
 
     try:
         # Agent processing (no user token passed, agent uses system token if needed)
-        agent_response = await agent.process_prompt(prompt, business_id, None, request.phone)
+        # Pass final_client_id to agent
+        agent_response = await agent.process_prompt(prompt, business_id, None, final_client_id)
         return ChatResponse(
             prompt=request.prompt,
             type=agent_response.get("type", "Chat"),
@@ -236,7 +239,11 @@ async def business_lookup(request: BusinessLookupRequest):
         raise HTTPException(status_code=404, detail="Business not found for the given phone number")
 
 @app.post("/business/register")
-async def business_register(request: BusinessRegisterRequest):
+async def business_register(request: BusinessRegisterRequest, x_client_id: Optional[str] = Header(None)):
+    # Currently this is local, but we accept client_id for future Java API integration
+    if x_client_id:
+        logging.info(f"Registering business {request.business_id} for phone {request.phone} with Client ID: {x_client_id}")
+        
     success = add_mapping(request.phone, request.business_id)
     if success:
         return {"message": "Mapping registered successfully", "phone": request.phone, "business_id": request.business_id}
