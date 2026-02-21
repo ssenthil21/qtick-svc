@@ -49,19 +49,15 @@ class Config:
 
     # Mapping files based on profile
     if APP_ENV == "prod":
-        MAPPINGS_FILE = "data/phone_mappings_prod.json"
         FRANCHISE_FILE = "data/franchise_mappings_prod.json"
     elif APP_ENV == "qa":
-        MAPPINGS_FILE = "data/phone_mappings_qa.json"
         FRANCHISE_FILE = "data/franchise_mappings_qa.json"
     else:
-        MAPPINGS_FILE = "data/phone_mappings.json"
         FRANCHISE_FILE = "data/franchise_mappings.json"
 
     # Debug logging
     print(f"--- Configuration Debug ---")
     print(f"APP_ENV: {APP_ENV}")
-    print(f"MAPPINGS_FILE: {MAPPINGS_FILE}")
     print(f"FRANCHISE_FILE: {FRANCHISE_FILE}")
     print(f"LLM_PROVIDER: {LLM_PROVIDER}")
     print(f"GEMINI_MODEL: {GEMINI_MODEL}")
