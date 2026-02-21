@@ -3,14 +3,14 @@ from app.services.mock_service import MockService
 from app.services.java_service import JavaService
 from app.models import ToolResult
 
-def get_service(token: str = None, client_id: str = None):
+def get_service(token: str = None, client_id: str = None, biz_hash: str = None):
     if settings.USE_MOCK_DATA:
         return MockService(token)
-    return JavaService(token, client_id)
+    return JavaService(token, client_id, biz_hash)
 
-async def search_services(business_id: int, text: str, token: str = None, client_id: str = None) -> ToolResult:
+async def search_services(business_id: int, text: str, token: str = None, client_id: str = None, biz_hash: str = None) -> ToolResult:
     """Search for services in the business catalog."""
-    service = get_service(token, client_id)
+    service = get_service(token, client_id, biz_hash)
     data = await service.search_services(business_id, text)
     
     if not data:

@@ -4,10 +4,10 @@ from app.services.mock_service import MockService
 from app.services.java_service import JavaService
 from app.models import ToolResult, OfferListResponse
 
-def get_service(token: str = None, client_id: str = None):
+def get_service(token: str = None, client_id: str = None, biz_hash: str = None):
     if settings.USE_MOCK_DATA:
         return MockService(token)
-    return JavaService(token, client_id)
+    return JavaService(token, client_id, biz_hash)
 
 def format_whatsapp_offer_list(offers: list, business_id: str) -> str:
     """Format offer list for WhatsApp."""
@@ -25,7 +25,7 @@ def format_whatsapp_offer_list(offers: list, business_id: str) -> str:
     message += "Grab them while they last! 🚀"
     return json.dumps(message, ensure_ascii=True)[1:-1]
 
-async def list_offers(business_id: str, token: str = None, client_id: str = None) -> ToolResult:
+async def list_offers(business_id: str, token: str = None, client_id: str = None, biz_hash: str = None) -> ToolResult:
     """
     List active offers for a business.
     
@@ -33,7 +33,7 @@ async def list_offers(business_id: str, token: str = None, client_id: str = None
         business_id: The ID of the business.
         token: Optional auth token.
     """
-    service = get_service(token, client_id)
+    service = get_service(token, client_id, biz_hash)
     
     try:
         offers = await service.list_offers(business_id)

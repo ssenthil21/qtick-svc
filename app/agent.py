@@ -236,26 +236,28 @@ class Agent:
     def __init__(self):
         self.provider = settings.LLM_PROVIDER
         
-    async def process_prompt(self, prompt: str, business_id: int, token: str = None, client_id: str = None) -> Dict[str, Any]:
+    async def process_prompt(self, prompt: str, business_id: int, token: str = None, client_id: str = None, biz_hash: str = None) -> Dict[str, Any]:
         logger.info(f"Processing prompt: {prompt}")
         
         # Log what is being passed to the model as requested
-        logger.info(f"Passing to model - Prompt: '{prompt}', Business ID: {business_id}")
+        logger.info(f"Passing to model - Prompt: '{prompt}', Business ID: {business_id}, Hash: {biz_hash}")
         
         if self.provider == "openai":
-            return await self._process_openai(prompt, business_id, token, client_id)
+            return await self._process_openai(prompt, business_id, token, client_id, biz_hash)
         elif self.provider == "gemini":
-            return await self._process_gemini(prompt, business_id, token, client_id)
+            return await self._process_gemini(prompt, business_id, token, client_id, biz_hash)
         else:
             return {"type": "Error", "response_text": "Unsupported LLM provider", "response_value": None}
 
-    async def _execute_tool(self, tool_name: str, arguments: Dict[str, Any], token: str = None, prompt: str = None, client_id: str = None) -> Any:
+    async def _execute_tool(self, tool_name: str, arguments: Dict[str, Any], token: str = None, prompt: str = None, client_id: str = None, biz_hash: str = None) -> Any:
         logger.info(f"Executing tool '{tool_name}' with args: {arguments}")
-        # Inject token and client_id into arguments if available
-        if token:
+        # Inject context into arguments if missing
+        if token and "token" not in arguments:
             arguments["token"] = token
-        if client_id:
+        if client_id and "client_id" not in arguments:
             arguments["client_id"] = client_id
+        if biz_hash and "biz_hash" not in arguments:
+            arguments["biz_hash"] = biz_hash
             
         try:
             if tool_name == "create_lead":
@@ -298,7 +300,7 @@ class Agent:
             logger.error(f"Error executing tool '{tool_name}': {str(e)}")
             return f"Error executing tool {tool_name}: {str(e)}"
 
-    async def _process_openai(self, prompt: str, business_id: int, token: str = None, client_id: str = None) -> Dict[str, Any]:
+    async def _process_openai(self, prompt: str, business_id: int, token: str = None, client_id: str = None, biz_hash: str = None) -> Dict[str, Any]:
         from openai import AsyncOpenAI
         client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
         
@@ -342,7 +344,7 @@ class Agent:
                 function_args = json.loads(tool_call.function.arguments)
                 
                 logger.info(f"Agent calling tool: {function_name}")
-                raw_result = await self._execute_tool(function_name, function_args, token, prompt, client_id)
+                raw_result = await self._execute_tool(function_name, function_args, token, prompt, client_id, biz_hash)
                 
                 last_tool_name = function_name
                 last_tool_result = raw_result
@@ -411,7 +413,7 @@ class Agent:
             "whatsAppText": whatsapp_text if whatsapp_text else response_text
         }
 
-    async def _process_gemini(self, prompt: str, business_id: int, token: str = None, client_id: str = None) -> Dict[str, Any]:
+    async def _process_gemini(self, prompt: str, business_id: int, token: str = None, client_id: str = None, biz_hash: str = None) -> Dict[str, Any]:
         import google.generativeai as genai
         from google.generativeai.types import FunctionDeclaration, Tool
         from google.ai.generativelanguage import Part, FunctionResponse
@@ -490,7 +492,7 @@ class Agent:
                 logger.info(f"Gemini requested tool call: {function_name}")
                 
                 # Execute the tool
-                raw_result = await self._execute_tool(function_name, function_args, token, prompt, client_id)
+                raw_result = await self._execute_tool(function_name, function_args, token, prompt, client_id, biz_hash)
                 
                 last_tool_name = function_name
                 last_tool_result = raw_result

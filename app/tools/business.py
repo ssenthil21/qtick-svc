@@ -5,11 +5,11 @@ from app.services.mock_service import MockService
 from app.services.java_service import JavaService
 from app.models import BusinessSummary, ToolResult
 
-def get_service(token: str = None, client_id: str = None):
+def get_service(token: str = None, client_id: str = None, biz_hash: str = None):
     if settings.USE_MOCK_DATA:
         return MockService(token)
     
-    return JavaService(token, client_id)
+    return JavaService(token, client_id, biz_hash)
 
 def format_short_number(num: float) -> str:
     """Format number to short form (e.g., 1.5L, 12.5K)."""
@@ -115,7 +115,7 @@ def format_whatsapp_franchise_summary(consolidated: BusinessSummary, details: li
     escaped_message = json.dumps(message, ensure_ascii=True)[1:-1]
     return escaped_message
 
-async def get_summary_for_business(business_id: str, from_date: str = None, to_date: str = None, period: str = None, token: str = None, client_id: str = None) -> ToolResult:
+async def get_summary_for_business(business_id: str, from_date: str = None, to_date: str = None, period: str = None, token: str = None, client_id: str = None, biz_hash: str = None) -> ToolResult:
     """Get a summary for a business."""
     from app.utils.date_utils import get_date_range
     
@@ -137,7 +137,7 @@ async def get_summary_for_business(business_id: str, from_date: str = None, to_d
     if to_date:
         to_date = to_date.replace("-", "/")
 
-    service = get_service(token, client_id)
+    service = get_service(token, client_id, biz_hash)
     data = await service.get_summary_for_business(business_id, from_date, to_date)
     
     # Set custom code if available
@@ -162,7 +162,7 @@ async def get_summary_for_business(business_id: str, from_date: str = None, to_d
         whatsAppText=whatsAppText
     )
 
-async def get_franchise_summary(business_ids: str = None, from_date: str = None, to_date: str = None, period: str = None, token: str = None, client_id: str = None) -> ToolResult:
+async def get_franchise_summary(business_ids: str = None, from_date: str = None, to_date: str = None, period: str = None, token: str = None, client_id: str = None, biz_hash: str = None) -> ToolResult:
     """
     Get a consolidated summary for multiple businesses (franchise report).
     
@@ -192,18 +192,16 @@ async def get_franchise_summary(business_ids: str = None, from_date: str = None,
     if to_date:
         to_date = to_date.replace("-", "/")
 
-    service = get_service(token, client_id)
-    
-    service = get_service(token, client_id)
+    service = get_service(token, client_id, biz_hash)
     
     # Auto-mapping for franchises if no IDs are provided
-    id_to_code = {}
+    branch_map = {}
     if client_id:
         from app.utils.mappings import get_franchise_map_by_phone
-        id_to_code = get_franchise_map_by_phone(client_id)
+        branch_map = get_franchise_map_by_phone(client_id)
         
-    if not business_ids and id_to_code:
-        business_ids = ",".join([str(bid) for bid in id_to_code.keys()])
+    if not business_ids and branch_map:
+        business_ids = ",".join([str(bid) for bid in branch_map.keys()])
         print(f"Auto-mapped franchise IDs for {client_id}: {business_ids}")
 
     if not business_ids:
@@ -226,10 +224,21 @@ async def get_franchise_summary(business_ids: str = None, from_date: str = None,
     
     for business_id in ids:
         try:
-           data = await service.get_summary_for_business(business_id, from_date, to_date)
+           # Check for branch-specific hash in the map
+           branch_info = branch_map.get(str(business_id))
+           branch_hash = None
+           branch_code = None
+           
+           if isinstance(branch_info, dict):
+               branch_hash = branch_info.get("hash")
+               branch_code = branch_info.get("code")
+           else:
+               branch_code = branch_info
+           
+           data = await service.get_summary_for_business(business_id, from_date, to_date, biz_hash=branch_hash)
            if data:
                # Assign custom code if available in mapping
-               data.code = id_to_code.get(str(business_id))
+               data.code = branch_code
                
                details.append(data)
                total_leads += data.total_leads
@@ -300,7 +309,7 @@ def format_comparison_number(current: float, previous: float, is_currency: bool 
     
     return f"{fmt(previous)} → {fmt(current)} ({icon} {abs(change):.1f}%)"
 
-async def get_business_performance_comparison(business_id: str = None, period: str = None, from_date: str = None, to_date: str = None, token: str = None, client_id: str = None) -> ToolResult:
+async def get_business_performance_comparison(business_id: str = None, period: str = None, from_date: str = None, to_date: str = None, token: str = None, client_id: str = None, biz_hash: str = None) -> ToolResult:
     """
     Compare business performance between two periods (e.g. This Week vs Last Week).
     """
@@ -351,7 +360,7 @@ async def get_business_performance_comparison(business_id: str = None, period: s
     if to_date: to_date = to_date.replace("-", "/")
     
     # 3. Fetch Data
-    service = get_service(token, client_id)
+    service = get_service(token, client_id, biz_hash)
     current_data = await service.get_summary_for_business(business_id, from_date, to_date)
     prev_data = await service.get_summary_for_business(business_id, prev_from, prev_to)
     

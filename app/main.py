@@ -161,14 +161,26 @@ async def phone_chat(request: PhoneChatRequest, x_client_id: Optional[str] = Hea
     # But we pass client_id if provided, otherwise default to phone number
     final_client_id = x_client_id if x_client_id else request.phone
     service = JavaService(client_id=final_client_id)
-    business_id = await service.get_my_queues(request.phone)
+    lookup_results = await service.get_my_queues(request.phone)
+    
+    business_id = None
+    biz_hash = None
+    
+    if lookup_results and isinstance(lookup_results, list):
+        # Pick the first one as primary for the chat context
+        primary = lookup_results[0]
+        business_id = primary.get("bizId")
+        biz_hash = primary.get("bizHash")
     
     if not business_id:
         # Fallback to local mapping if upstream fails (optional, but good for safety/dev)
         from app.utils.mappings import get_business_id_by_phone
-        business_id = get_business_id_by_phone(request.phone)
-        if business_id:
-            logging.info(f"Resolved business_id {business_id} for phone {request.phone} via local mapping")
+        mapping = get_business_id_by_phone(request.phone)
+        if mapping:
+            business_id = mapping.get("bizId")
+            biz_hash = mapping.get("bizHash")
+            if business_id:
+                logging.info(f"Resolved business_id {business_id} (hash: {biz_hash}) for phone {request.phone} via local mapping")
     
     if not business_id:
         return ChatResponse(
@@ -203,8 +215,8 @@ async def phone_chat(request: PhoneChatRequest, x_client_id: Optional[str] = Hea
 
     try:
         # Agent processing (no user token passed, agent uses system token if needed)
-        # Pass final_client_id to agent
-        agent_response = await agent.process_prompt(prompt, business_id, None, final_client_id)
+        # Pass final_client_id and biz_hash to agent
+        agent_response = await agent.process_prompt(prompt, business_id, None, final_client_id, biz_hash)
         return ChatResponse(
             prompt=request.prompt,
             type=agent_response.get("type", "Chat"),

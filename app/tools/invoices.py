@@ -3,14 +3,14 @@ from app.services.mock_service import MockService
 from app.services.java_service import JavaService
 from app.models import Invoice, ToolResult
 
-def get_service(token: str = None, client_id: str = None):
+def get_service(token: str = None, client_id: str = None, biz_hash: str = None):
     if settings.USE_MOCK_DATA:
         return MockService(token)
-    return JavaService(token, client_id)
+    return JavaService(token, client_id, biz_hash)
 
-async def create_invoice(business_id: str, customer_id: str, amount: float, items: list = [], token: str = None, client_id: str = None) -> ToolResult:
+async def create_invoice(business_id: str, customer_id: str, amount: float, items: list = [], token: str = None, client_id: str = None, biz_hash: str = None) -> ToolResult:
     """Create a new invoice."""
-    service = get_service(token, client_id)
+    service = get_service(token, client_id, biz_hash)
     invoice = Invoice(
         business_id=business_id,
         customer_id=customer_id,
@@ -22,9 +22,9 @@ async def create_invoice(business_id: str, customer_id: str, amount: float, item
     text = f"Invoice created successfully. ID: {result.id}"
     return ToolResult(type="create_invoice", data=result, text=text)
 
-async def list_invoices(token: str = None, client_id: str = None) -> ToolResult:
+async def list_invoices(token: str = None, client_id: str = None, biz_hash: str = None) -> ToolResult:
     """List all invoices."""
-    service = get_service(token, client_id)
+    service = get_service(token, client_id, biz_hash)
     data = await service.list_invoices()
     text = f"{len(data)} invoices found."
     
@@ -48,9 +48,9 @@ async def list_invoices(token: str = None, client_id: str = None) -> ToolResult:
     
     return ToolResult(type="list_invoices", data=data, text=text, whatsAppText=escaped_wa)
 
-async def get_invoice(invoice_id: str, token: str = None, client_id: str = None) -> ToolResult:
+async def get_invoice(invoice_id: str, token: str = None, client_id: str = None, biz_hash: str = None) -> ToolResult:
     """Get details of a specific invoice."""
-    service = get_service(token, client_id)
+    service = get_service(token, client_id, biz_hash)
     data = await service.get_invoice(invoice_id)
     if data:
         text = f"Invoice details found for ID {invoice_id}."

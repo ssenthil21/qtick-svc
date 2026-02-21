@@ -34,10 +34,10 @@ def _save_mappings(mappings: dict):
 def _load_franchise_mappings() -> dict:
     return _load_json_file(FRANCHISE_FILE, {})
 
-def get_business_id_by_phone(phone_number: str) -> Optional[int]:
+def get_business_id_by_phone(phone_number: str) -> Optional[dict]:
     """
-    Returns the business ID for a given phone number.
-    Handles common formats (e.g., with or without '65' prefix).
+    Returns the business mapping info for a given phone number.
+    Returns None if the phone number is not found.
     """
     if not phone_number:
         return None
@@ -60,11 +60,13 @@ def get_business_id_by_phone(phone_number: str) -> Optional[int]:
         return None
         
     if isinstance(entry, dict):
-        biz_id = entry.get("id")
-        return int(biz_id) if biz_id is not None else None
-    return int(entry)
+        return {
+            "bizId": int(entry.get("id")) if entry.get("id") is not None else None,
+            "bizHash": entry.get("hash")
+        }
+    return {"bizId": int(entry), "bizHash": None}
 
-def add_mapping(phone_number: str, business_id: int) -> bool:
+def add_mapping(phone_number: str, business_id: int, biz_hash: str = None) -> bool:
     """
     Adds a new mapping. A business ID can only be assigned to one phone number.
     Returns True if successful, False if the business ID is already assigned.
@@ -86,16 +88,21 @@ def add_mapping(phone_number: str, business_id: int) -> bool:
     existing = mappings.get(normalized_phone)
     if isinstance(existing, dict):
         existing["id"] = business_id
+        if biz_hash:
+            existing["hash"] = biz_hash
         mappings[normalized_phone] = existing
     else:
-        mappings[normalized_phone] = business_id
+        if biz_hash:
+            mappings[normalized_phone] = {"id": business_id, "hash": biz_hash}
+        else:
+            mappings[normalized_phone] = business_id
         
     _save_mappings(mappings)
     return True
 
 def get_franchise_map_by_phone(phone_number: str) -> dict:
     """
-    Returns a dict of business_id -> code for a given phone number.
+    Returns a dict of business_id -> info (code or dict) for a given phone number.
     Returns an empty dict if not found.
     """
     normalized_phone = "".join(filter(str.isdigit, phone_number))

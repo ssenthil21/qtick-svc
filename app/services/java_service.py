@@ -8,9 +8,10 @@ from app.config import settings, mask_key
 logger = logging.getLogger(__name__)
 
 class JavaService(BaseService):
-    def __init__(self, token: str = None, client_id: str = None):
+    def __init__(self, token: str = None, client_id: str = None, biz_hash: str = None):
         # Initialize base_url from settings
         self.base_url = settings.JAVA_API_BASE_URL
+        self.biz_hash = biz_hash
         
         # Initialize headers dictionary
         headers = {
@@ -25,6 +26,8 @@ class JavaService(BaseService):
         logging.info(f">>>> JAVA SERVICE INIT <<<<")
         if client_id:
             logging.info(f"!!!! X-ClientId: {client_id}")
+        if biz_hash:
+            logging.info(f"!!!! bizHash: {biz_hash}")
         logging.info(f"!!!! Config Token from .env: {settings.QTICK_JAVA_SERVICE_TOKEN[:10] if settings.QTICK_JAVA_SERVICE_TOKEN else 'None'}...")
         logging.info(f"!!!! Passed Token from Header: {token[:10] if token else 'None'}...")
         
@@ -81,7 +84,7 @@ class JavaService(BaseService):
                     logging.error(f"Error looking up service '{request.service_name}': {e}")
 
             payload: Dict[str, Any] = {
-                "bizId": request.business_id,
+                "bizId": self.biz_hash if self.biz_hash else request.business_id,
                 "phone": request.phone.replace('+', '') if request.phone else "",
                 "email": request.email or "",
                 "custName": request.name,
@@ -100,9 +103,10 @@ class JavaService(BaseService):
                 "notes": request.notes or "",
                 "services": services_payload
             }
-
-            # Include null values as required by API
-            # payload = {k: v for k, v in payload.items() if v is not None}
+            
+            # Add bizHash if available
+            if self.biz_hash:
+                payload["bizHash"] = self.biz_hash
 
             import logging
             import json
@@ -175,6 +179,10 @@ class JavaService(BaseService):
         # Ensure url does not have double slashes if base_url ends with one
         request_url = url.lstrip('/')
         
+        # Inject bizHash into payload if available and not already present
+        if self.biz_hash and "bizHash" not in json_data:
+            json_data["bizHash"] = self.biz_hash
+        
         logging.info(f"POST {request_url}")
         logging.info(f"Request Headers: {dict(self.client.headers)}")
         logging.info(f"Request Body: {json.dumps(json_data, indent=2)}")
@@ -210,8 +218,10 @@ class JavaService(BaseService):
             "fromDate": "",
             "toDate": "",
         }
+            
+        biz_path = self.biz_hash if self.biz_hash else int(business_id)
         data = await self._get(
-            f"api/biz/{int(business_id)}/sales-enq/list", params=params
+            f"api/biz/{biz_path}/sales-enq/list", params=params
         )
         
         leads: List[LeadSummary] = []
@@ -238,6 +248,9 @@ class JavaService(BaseService):
     async def _get(self, url: str, params: dict = None) -> Any:
         import logging
         
+        if params is None:
+            params = {}
+            
         request_url = url.lstrip('/')
         
         logging.info(f"GET {request_url}")
@@ -273,6 +286,9 @@ class JavaService(BaseService):
         headers["Accept"] = "application/json"
         
         payload = request.dict()
+        if self.biz_hash:
+            payload["bizId"] = self.biz_hash
+            payload["bizHash"] = self.biz_hash
         
         response = await self.client.post("web/v2/booking", json=payload, headers=headers)
         
@@ -298,9 +314,10 @@ class JavaService(BaseService):
             "status": status,
             "sessionId": ""
         }
-        
+            
         # Use _get for proper logging and error handling
-        response_data = await self._get(f"api/biz/{int(business_id)}/bookings/", params=params)
+        biz_path = self.biz_hash if self.biz_hash else int(business_id)
+        response_data = await self._get(f"api/biz/{biz_path}/bookings/", params=params)
         
         appointments = []
         for item in response_data:
@@ -324,36 +341,58 @@ class JavaService(BaseService):
         return appointments
 
     async def get_appointment(self, appointment_id: str) -> Optional[Appointment]:
-        response = await self.client.get(f"appointments/{appointment_id}")
+        params = {}
+        biz_path = self.biz_hash if self.biz_hash else "default"
+        response = await self.client.get(f"api/biz/{biz_path}/bookings/{appointment_id}", params=params)
         if response.status_code == 404:
             return None
         response.raise_for_status()
         return Appointment(**response.json())
 
     async def create_invoice(self, invoice: Invoice) -> Invoice:
-        response = await self.client.post("invoices", json=invoice.dict(exclude={"id", "created_at"}))
+        payload = invoice.dict(exclude={"id", "created_at"})
+        if self.biz_hash:
+            payload["bizId"] = self.biz_hash
+            payload["bizHash"] = self.biz_hash
+        
+        biz_path = self.biz_hash if self.biz_hash else invoice.business_id
+        response = await self.client.post(f"api/biz/{biz_path}/invoices", json=payload)
         response.raise_for_status()
         return Invoice(**response.json())
 
-    async def list_invoices(self) -> List[Invoice]:
-        response = await self.client.get("invoices")
+    async def list_invoices(self, business_id: str = None) -> List[Invoice]:
+        params = {}
+        biz_path = self.biz_hash if self.biz_hash else business_id
+        if not biz_path:
+            # Fallback for generic list if no context available
+            response = await self.client.get("invoices", params=params)
+        else:
+            response = await self.client.get(f"api/biz/{biz_path}/invoices", params=params)
+            
         response.raise_for_status()
         return [Invoice(**item) for item in response.json()]
 
-    async def get_invoice(self, invoice_id: str) -> Optional[Invoice]:
-        response = await self.client.get(f"invoices/{invoice_id}")
+    async def get_invoice(self, invoice_id: str, business_id: str = None) -> Optional[Invoice]:
+        params = {}
+        biz_path = self.biz_hash if self.biz_hash else business_id
+        if not biz_path:
+            response = await self.client.get(f"invoices/{invoice_id}", params=params)
+        else:
+            response = await self.client.get(f"api/biz/{biz_path}/invoices/{invoice_id}", params=params)
+            
         if response.status_code == 404:
             return None
         response.raise_for_status()
         return Invoice(**response.json())
 
-    async def get_summary_for_business(self, business_id: str, from_date: str, to_date: str) -> BusinessSummary:
+    async def get_summary_for_business(self, business_id: str, from_date: str, to_date: str, biz_hash: str = None) -> BusinessSummary:
         params = {
             "fromDate": from_date,
             "toDate": to_date
         }
-        # Fixed to use self._get which handles relative URLs correctly
-        data = await self._get(f"api/biz/{int(business_id)}/summary", params=params)
+        # Use passed biz_hash, then instance biz_hash, then integer ID
+        biz_path = biz_hash if biz_hash else (self.biz_hash if self.biz_hash else int(business_id))
+        data = await self._get(f"api/biz/{biz_path}/summary", params=params)
         
         return BusinessSummary(
             business_id=str(business_id),
@@ -369,6 +408,8 @@ class JavaService(BaseService):
             "bizId": int(business_id),
             "text": text
         }
+        if self.biz_hash:
+            params["bizId"] = self.biz_hash
         
         # This specific endpoint (web/biz/services) typically requires a Bearer token
         # even during phone chats where other endpoints use the secret key.
@@ -384,8 +425,10 @@ class JavaService(BaseService):
         return [Service(**item) for item in response.json()]
 
     async def list_offers(self, business_id: str) -> List[Offer]:
+        params = {}
         # GET /api/biz/{business_id}/offers
-        response_data = await self._get(f"api/biz/{int(business_id)}/offers")
+        biz_path = self.biz_hash if self.biz_hash else int(business_id)
+        response_data = await self._get(f"api/biz/{biz_path}/offers", params=params)
         
         offers = []
         for item in response_data:
@@ -407,9 +450,9 @@ class JavaService(BaseService):
             
         return offers
 
-    async def get_my_queues(self, phone: str) -> Optional[int]:
+    async def get_my_queues(self, phone: str) -> Optional[Dict[str, Any]]:
         """
-        Get business ID by phone number from upstream API.
+        Get business ID and Hash by phone number from upstream API.
         This uses a special secret key for authorization.
         """
         import logging
@@ -436,21 +479,23 @@ class JavaService(BaseService):
             
             if response.status_code != 200:
                 logging.error(f"get_my_queues failed: {response.text}")
-                return None
+                return []
                 
             data = response.json()
-            if isinstance(data, list) and len(data) > 0:
-                first_item = data[0]
-                biz_id = first_item.get("bizId")
-                logging.info(f"Resolved phone {phone} to business_id {biz_id}")
-                return biz_id
+            if isinstance(data, list):
+                return [
+                    {
+                        "bizId": item.get("bizId"),
+                        "bizHash": item.get("bizHash")
+                    } for item in data
+                ]
                 
-            logging.warning(f"get_my_queues returned empty list or unexpected format for phone {phone}")
-            return None
+            logging.warning(f"get_my_queues returned unexpected format for phone {phone}")
+            return []
             
         except Exception as e:
             logging.error(f"Error in get_my_queues: {e}", exc_info=True)
-            return None
+            return []
 
 
 def _utc_now_iso() -> str:

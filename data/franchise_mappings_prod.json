@@ -1,13 +1,28 @@
 {
     "6592701525": {
-        "4": "KSM",
-        "117": "QTI"
+        "4": {
+            "code": "KSM",
+            "hash": "HASH_4_KSM"
+        },
+        "117": {
+            "code": "QTI",
+            "hash": "HASH_117_QTI"
+        }
     },
     "919840802073": {
-        "27": "ANN",
-        "35": "ADA"
+        "27": {
+            "code": "ANN",
+            "hash": "HASH_27_ANN"
+        },
+        "35": {
+            "code": "ADA",
+            "hash": "HASH_35_ADA"
+        }
     },
     "919789472243": {
-        "52": "SHA"
+        "52": {
+            "code": "SHA",
+            "hash": "HASH_52_SHA"
+        }
     }
 }
