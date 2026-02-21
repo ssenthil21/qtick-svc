@@ -104,6 +104,7 @@ class Invoice(BaseModel):
 
 class BusinessSummary(BaseModel):
     business_id: str
+    code: Optional[str] = None
     total_leads: int
     total_appointments: int
     bills_count: int

@@ -21,7 +21,8 @@ def format_short_number(num: float) -> str:
 
 def format_whatsapp_summary(data: BusinessSummary, from_date: str, to_date: str, business_id: str = "") -> str:
     """Format business summary for WhatsApp with encoding."""
-    business_name = f"QTick (Biz #{business_id})" if business_id else "QTick"
+    display_id = getattr(data, "code", None) or business_id
+    business_name = f"QTick ({display_id})" if display_id else "QTick"
     
     try:
         start_dt = datetime.strptime(from_date, "%Y/%m/%d")
@@ -74,20 +75,20 @@ def format_whatsapp_franchise_summary(consolidated: BusinessSummary, details: li
     
     # Visual Alignment (assuming straight pipes and Emoji=2 chars):
     # Expanded widths for better alignment: 4, 4, 6, 4
-    # Col 1 (4): "🆔  " (Emoji+2 Spaces)
-    # Col 2 (4): "  ✅" (2 Spaces+Emoji)
-    # Col 3 (6): "    💰" (4 Spaces+Emoji)
-    # Col 4 (4): "  📅" (2 Spaces+Emoji)
+    # Col 1 (4): "BRN "
+    # Col 2 (4): "   ✅" (3 Spaces+Emoji)
+    # Col 3 (6): "     💰" (5 Spaces+Emoji)
+    # Col 4 (4): "   📅" (3 Spaces+Emoji)
     
-    header = "🆔  |  ✅|    💰|  📅"
+    header = "BRN |   ✅|     💰|   📅"
     
     table_lines = ["```", header]
     # Separator: ----|----|------|----
     table_lines.append("----|----|------|----")
     
     for s in details:
-        # Business ID (last 3 chars)
-        bid = str(s.business_id)[-3:].ljust(4)
+        # Business ID/Code (prefer custom code, fallback to last 3 chars of ID)
+        bid = (getattr(s, "code", None) or str(s.business_id)[-3:])[:4].ljust(4)
         # Enquiries
         enq = str(s.total_leads).rjust(4)
         # Revenue (e.g. 12.5K, 0)
@@ -138,8 +139,14 @@ async def get_summary_for_business(business_id: str, from_date: str = None, to_d
 
     service = get_service(token, client_id)
     data = await service.get_summary_for_business(business_id, from_date, to_date)
+    
+    # Set custom code if available
+    from app.utils.mappings import get_code_by_business_id
+    data.code = get_code_by_business_id(int(business_id))
+    
+    display_id = data.code or business_id
     text = (
-        f"Business Summary for ID {business_id} from {from_date} to {to_date}:\n"
+        f"Business Summary for {display_id} from {from_date} to {to_date}:\n"
         f"✅ Total Leads: {data.total_leads}\n"
         f"📅 Total Appointments: {data.total_appointments}\n"
         f"🧾 Total Bills: {data.bills_count}\n"
@@ -187,13 +194,17 @@ async def get_franchise_summary(business_ids: str = None, from_date: str = None,
 
     service = get_service(token, client_id)
     
+    service = get_service(token, client_id)
+    
     # Auto-mapping for franchises if no IDs are provided
-    if not business_ids and client_id:
-        from app.utils.mappings import get_franchise_ids_by_phone
-        mapped_ids = get_franchise_ids_by_phone(client_id)
-        if mapped_ids:
-            business_ids = ",".join(map(str, mapped_ids))
-            print(f"Auto-mapped franchise IDs for {client_id}: {business_ids}")
+    id_to_code = {}
+    if client_id:
+        from app.utils.mappings import get_franchise_map_by_phone
+        id_to_code = get_franchise_map_by_phone(client_id)
+        
+    if not business_ids and id_to_code:
+        business_ids = ",".join([str(bid) for bid in id_to_code.keys()])
+        print(f"Auto-mapped franchise IDs for {client_id}: {business_ids}")
 
     if not business_ids:
         return ToolResult(
@@ -217,6 +228,9 @@ async def get_franchise_summary(business_ids: str = None, from_date: str = None,
         try:
            data = await service.get_summary_for_business(business_id, from_date, to_date)
            if data:
+               # Assign custom code if available in mapping
+               data.code = id_to_code.get(str(business_id))
+               
                details.append(data)
                total_leads += data.total_leads
                total_appointments += data.total_appointments
@@ -238,13 +252,15 @@ async def get_franchise_summary(business_ids: str = None, from_date: str = None,
     )
     
     # Create Markdown Table
-    table_header = "| Branch ID | Leads | Appointments | Bills | Revenue |\n|---|---|---|---|---|\n"
+    table_header = "| Branch | Leads | Appointments | Bills | Revenue |\n|---|---|---|---|---|\n"
     table_rows = ""
     for d in details:
-         table_rows += f"| {d.business_id} | {d.total_leads} | {d.total_appointments} | {d.bills_count} | ₹{d.total_revenue:,.2f} |\n"
+        branch_label = getattr(d, "code", None) or d.business_id
+        table_rows += f"| {branch_label} | {d.total_leads} | {d.total_appointments} | {d.bills_count} | ₹{d.total_revenue:,.2f} |\n"
     
+    display_names = ", ".join([d.code or str(d.business_id) for d in details])
     text = (
-        f"Franchise Summary for businesses {business_ids} from {from_date} to {to_date}:\n\n"
+        f"Franchise Summary for {display_names} from {from_date} to {to_date}:\n\n"
         f"{table_header + table_rows}\n"
         f"**Totals:**\n"
         f"✅ Total Leads: {total_leads}\n"

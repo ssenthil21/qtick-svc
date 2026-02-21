@@ -12,9 +12,9 @@ print(f"Project Root: {BASE_DIR}")
 print(f"Looking for .env at: {env_path.absolute()}")
 print(f"File exists: {env_path.exists()}")
 
-# In dev, let .env override anything else. Force clear cache for reliability.
-# Note: override=True handles existing env vars in the current shell.
-loaded = load_dotenv(dotenv_path=env_path, override=True)
+# In dev, let .env provide defaults, but allow environment variables to override.
+# override=False (default) preserves existing env vars in the current shell.
+loaded = load_dotenv(dotenv_path=env_path, override=False)
 print(f"load_dotenv result: {loaded}")
 
 def mask_key(k):
@@ -47,9 +47,22 @@ class Config:
     QTICK_JAVA_SERVICE_TOKEN = os.getenv("QTICK_JAVA_SERVICE_TOKEN")
     QTICK_BIZ_PROFILE_SECRET = os.getenv("QTICK_BIZ_PROFILE_SECRET")
 
+    # Mapping files based on profile
+    if APP_ENV == "prod":
+        MAPPINGS_FILE = "data/phone_mappings_prod.json"
+        FRANCHISE_FILE = "data/franchise_mappings_prod.json"
+    elif APP_ENV == "qa":
+        MAPPINGS_FILE = "data/phone_mappings_qa.json"
+        FRANCHISE_FILE = "data/franchise_mappings_qa.json"
+    else:
+        MAPPINGS_FILE = "data/phone_mappings.json"
+        FRANCHISE_FILE = "data/franchise_mappings.json"
+
     # Debug logging
     print(f"--- Configuration Debug ---")
     print(f"APP_ENV: {APP_ENV}")
+    print(f"MAPPINGS_FILE: {MAPPINGS_FILE}")
+    print(f"FRANCHISE_FILE: {FRANCHISE_FILE}")
     print(f"LLM_PROVIDER: {LLM_PROVIDER}")
     print(f"GEMINI_MODEL: {GEMINI_MODEL}")
     print(f"Selected GEMINI_API_KEY source: {key_source}")
