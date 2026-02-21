@@ -37,13 +37,28 @@ def _load_franchise_mappings() -> dict:
 def get_business_id_by_phone(phone_number: str) -> Optional[int]:
     """
     Returns the business ID for a given phone number.
-    Returns None if the phone number is not found.
+    Handles common formats (e.g., with or without '65' prefix).
     """
-    normalized_phone = "".join(filter(str.isdigit, phone_number))
+    if not phone_number:
+        return None
+        
+    num = "".join(filter(str.isdigit, phone_number))
     mappings = _load_mappings()
-    entry = mappings.get(normalized_phone)
+    
+    # Try exact match
+    entry = mappings.get(num)
+    
+    # Try with '65' prefix if missing (Singapore default)
+    if entry is None and len(num) == 8:
+        entry = mappings.get("65" + num)
+        
+    # Try removing '65' prefix if present
+    if entry is None and num.startswith("65") and len(num) > 8:
+        entry = mappings.get(num[2:])
+        
     if entry is None:
         return None
+        
     if isinstance(entry, dict):
         biz_id = entry.get("id")
         return int(biz_id) if biz_id is not None else None

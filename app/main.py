@@ -165,16 +165,18 @@ async def phone_chat(request: PhoneChatRequest, x_client_id: Optional[str] = Hea
     
     if not business_id:
         # Fallback to local mapping if upstream fails (optional, but good for safety/dev)
-        # business_id = get_business_id_by_phone(request.phone)
-        pass
-
+        from app.utils.mappings import get_business_id_by_phone
+        business_id = get_business_id_by_phone(request.phone)
+        if business_id:
+            logging.info(f"Resolved business_id {business_id} for phone {request.phone} via local mapping")
+    
     if not business_id:
         return ChatResponse(
             prompt=request.prompt,
             type="Error",
-            response_text="Your number does not have a business configured.",
+            response_text=f"Your number ({request.phone}) does not have a business configured. Please contact support to register.",
             response_value=None,
-            whatsAppText="Your number does not have a business configured."
+            whatsAppText=f"Your number ({request.phone}) does not have a business configured."
         )
 
     import json
