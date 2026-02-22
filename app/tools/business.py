@@ -64,42 +64,38 @@ def format_whatsapp_franchise_summary(consolidated: BusinessSummary, details: li
     # Monospaced Table inside Code Block
     # Monospaced Table inside Code Block
     # Cols: ID(3), Enq(3), Rev(5), Bkg(3)
-    # Header using icons (assuming approx 2 chars width for emoji)
     # ID: "🆔 " (2+1=3?) No, usually emoji is 2 chars. Let's try to center/align.
     # We'll use a mix of spaces to align. 
     # Note: Emojis inside code blocks on WhatsApp can be tricky. 
     # Best compromise: ID | ✅ | 💰  | 📅
     
-    # Header: "🆔 | ✅|   💰| 📅"
-    # Separator: "---|---|-----|---" (matches data widths: 3, 3, 5, 3)
+    # Transposed format with Emojis:
+    # ID     |  KSM |  QTI
+    # -------+------+------
+    # ✅ ENQ |    2 |    6
+    # 💰 REV |  3.4K|    0
+    # 📅 BOO |  140 |    0
     
-    # Visual Alignment (assuming straight pipes and Emoji=2 chars):
-    # Expanded widths for better alignment: 4, 4, 6, 4
-    # Col 1 (4): "BRN "
-    # Col 2 (4): "   ✅" (3 Spaces+Emoji)
-    # Col 3 (6): "     💰" (5 Spaces+Emoji)
-    # Col 4 (4): "   📅" (3 Spaces+Emoji)
+    col_width = 7
+    branch_width = 6
     
-    header = "BRN |   ✅|     💰|   📅"
+    header = "ID".ljust(col_width)
+    sep = "-" * col_width
     
-    table_lines = ["```", header]
-    # Separator: ----|----|------|----
-    table_lines.append("----|----|------|----")
+    row_enq = "✅ ENQ".ljust(col_width - 1)
+    row_rev = "💰 REV".ljust(col_width - 1)
+    row_boo = "📅 BOO".ljust(col_width - 1)
     
     for s in details:
-        # Business ID/Code (prefer custom code, fallback to last 3 chars of ID)
-        bid = (getattr(s, "code", None) or str(s.business_id)[-3:])[:4].ljust(4)
-        # Enquiries
-        enq = str(s.total_leads).rjust(4)
-        # Revenue (e.g. 12.5K, 0)
-        rev = format_short_number(s.total_revenue).rjust(6)
-        # Bookings
-        bkg = str(s.total_appointments).rjust(4)
+        bid = (getattr(s, "code", None) or str(s.business_id)[-3:])[:branch_width-1].rjust(branch_width)
+        header += "|" + bid
+        sep += "+" + ("-" * branch_width)
         
-        line = f"{bid}|{enq}|{rev}|{bkg}"
-        table_lines.append(line)
+        row_enq += "|" + str(s.total_leads).rjust(branch_width)
+        row_rev += "|" + format_short_number(s.total_revenue).rjust(branch_width)
+        row_boo += "|" + str(s.total_appointments).rjust(branch_width)
         
-    table_lines.append("```")
+    table_lines = ["```", header, sep, row_enq, row_rev, row_boo, "```"]
     table_str = "\n".join(table_lines)
 
     message = (

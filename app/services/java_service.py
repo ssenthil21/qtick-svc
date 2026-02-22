@@ -84,7 +84,7 @@ class JavaService(BaseService):
                     logging.error(f"Error looking up service '{request.service_name}': {e}")
 
             payload: Dict[str, Any] = {
-                "bizId": self.biz_hash if self.biz_hash else request.business_id,
+                "bizId": int(request.business_id),
                 "phone": request.phone.replace('+', '') if request.phone else "",
                 "email": request.email or "",
                 "custName": request.name,
@@ -104,9 +104,8 @@ class JavaService(BaseService):
                 "services": services_payload
             }
             
-            # Add bizHash if available
-            if self.biz_hash:
-                payload["bizHash"] = self.biz_hash
+            # Removed manual bizHash injection from payload
+
 
             import logging
             import json
@@ -136,16 +135,16 @@ class JavaService(BaseService):
             if "X-ClientId" in self.client.headers:
                 headers["X-ClientId"] = self.client.headers["X-ClientId"]
 
-            logging.info(f"POST {self.base_url}api/biz/sales-enq")
+            biz_path = self.biz_hash if self.biz_hash else int(request.business_id)
+            logging.info(f"POST {self.base_url}api/biz/{biz_path}/sales-enq")
             safe_headers = headers.copy()
             if "Authorization" in safe_headers:
                 safe_headers["Authorization"] = mask_key(safe_headers["Authorization"])
             logging.info(f"Headers: {safe_headers}")
 
-            # data = await self._post("api/biz/sales-enq", payload)
             # Use raw post with fresh client to override headers completely for this specific call
             async with httpx.AsyncClient(base_url=self.base_url) as client:
-                response = await client.post("api/biz/sales-enq", json=payload, headers=headers)
+                response = await client.post(f"api/biz/{biz_path}/sales-enq", json=payload, headers=headers)
             
             logging.info(f"Response Status: {response.status_code}")
             logging.info(f"Response Content: '{response.text}'")
@@ -179,9 +178,8 @@ class JavaService(BaseService):
         # Ensure url does not have double slashes if base_url ends with one
         request_url = url.lstrip('/')
         
-        # Inject bizHash into payload if available and not already present
-        if self.biz_hash and "bizHash" not in json_data:
-            json_data["bizHash"] = self.biz_hash
+        # Removed bizHash injection from payload
+
         
         logging.info(f"POST {request_url}")
         logging.info(f"Request Headers: {dict(self.client.headers)}")
@@ -286,11 +284,14 @@ class JavaService(BaseService):
         headers["Accept"] = "application/json"
         
         payload = request.dict()
-        if self.biz_hash:
-            payload["bizId"] = self.biz_hash
-            payload["bizHash"] = self.biz_hash
+        # Ensure bizId is int in payload
+        payload["bizId"] = int(request.bizId)
+        # bizHash is NOT needed in payload
+        if "bizHash" in payload:
+            del payload["bizHash"]
         
-        response = await self.client.post("web/v2/booking", json=payload, headers=headers)
+        biz_path = self.biz_hash if self.biz_hash else int(request.bizId)
+        response = await self.client.post(f"api/biz/{biz_path}/bookings/", json=payload, headers=headers)
         
         if response.is_success:
             return BookingResponse(**response.json())
@@ -351,11 +352,12 @@ class JavaService(BaseService):
 
     async def create_invoice(self, invoice: Invoice) -> Invoice:
         payload = invoice.dict(exclude={"id", "created_at"})
-        if self.biz_hash:
-            payload["bizId"] = self.biz_hash
-            payload["bizHash"] = self.biz_hash
+        payload["bizId"] = int(invoice.business_id)
+        # bizHash is NOT needed in payload
+        if "bizHash" in payload:
+            del payload["bizHash"]
         
-        biz_path = self.biz_hash if self.biz_hash else invoice.business_id
+        biz_path = self.biz_hash if self.biz_hash else int(invoice.business_id)
         response = await self.client.post(f"api/biz/{biz_path}/invoices", json=payload)
         response.raise_for_status()
         return Invoice(**response.json())
